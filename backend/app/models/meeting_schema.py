@@ -1,8 +1,9 @@
-# 데이터 구조 정의(schema)
-rom pydantic import BaseModel
+from pydantic import BaseModel
 from typing import List
 
 class MeetingMinutes(BaseModel):
+    description: str
+    core_summary: List[str]
     meeting_type: str
     topics: List[str]
     decisions: List[str]
