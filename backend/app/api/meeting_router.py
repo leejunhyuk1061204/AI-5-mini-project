@@ -1,4 +1,13 @@
 # 엔드포인트 정의
 
-POST /api/meeting/upload # 음성 업로드
-POST /api/meeting/generate # 회의록 생성
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/api/meeting", tags=["meeting"])
+
+@router.post("/upload")
+def upload():
+    return {"message": "upload ok"}
+
+@router.post("/generate")
+def generate():
+    return {"message": "generate ok"}
