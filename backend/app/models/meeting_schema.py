@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+# 데이터 구조 정의(schema)
+rom pydantic import BaseModel
 from typing import List
 
 class MeetingMinutes(BaseModel):
