@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { SttResultData } from '../../types';
+// @ts-ignore
+import jsPDF from 'jspdf';
 
 interface SttConversionProps {
     fileName: string;
@@ -52,6 +54,7 @@ const SttConversion: React.FC<SttConversionProps> = ({
         { message: '음성 텍스트 변환 엔진 초기화 중...', status: 'active' }
     ]);
     const [result, setResult] = useState<SttResultData | null>(initialData || null);
+    const resultRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         // If we have initialData, skip simulation
@@ -98,6 +101,37 @@ const SttConversion: React.FC<SttConversionProps> = ({
         }
     }, [progress, status, onConversionComplete, initialData]);
 
+    const handleExportPDF = async () => {
+        if (!resultRef.current) return;
+
+        try {
+            const { toPng } = await import('html-to-image');
+
+            // Use lighter background color specifically for capture if needed, 
+            // but white is safest for PDF.
+            const dataUrl = await toPng(resultRef.current, { cacheBust: true, backgroundColor: '#ffffff' });
+
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+
+            const imgProps = pdf.getImageProperties(dataUrl);
+            const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+            // Simple single page fit logic
+            if (imgHeight > pdfHeight) {
+                pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, imgHeight);
+            } else {
+                pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, imgHeight);
+            }
+
+            pdf.save(`${fileName.replace(/\.[^/.]+$/, "")}_meeting_minutes.pdf`);
+        } catch (error) {
+            console.error("PDF Export failed:", error);
+            alert("PDF 생성을 실패했습니다. (Error: " + error + ")");
+        }
+    };
+
     return (
         <div className="flex flex-col h-full bg-white dark:bg-[#1a2235] rounded-xl shadow-sm border border-[#cfd7e7] dark:border-gray-700 overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#e7ebf3] dark:border-gray-700 bg-[#f8fafc] dark:bg-[#1e293b]">
@@ -106,6 +140,15 @@ const SttConversion: React.FC<SttConversionProps> = ({
                     {status === 'completed' ? 'STT 변환 결과' : 'STT 변환 진행상황'}
                 </h2>
                 <div className="flex items-center gap-3">
+                    {status === 'completed' && (
+                        <button
+                            onClick={handleExportPDF}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#135bec] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
+                            PDF 내보내기
+                        </button>
+                    )}
                     {status === 'processing' ? (
                         <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
                             처리 중...
@@ -118,7 +161,7 @@ const SttConversion: React.FC<SttConversionProps> = ({
                 </div>
             </div>
 
-            <div className="p-6 flex-1 overflow-y-auto">
+            <div className="p-6 flex-1 overflow-y-auto" ref={resultRef}>
                 <div className="space-y-6">
                     {(status === 'processing' || !result) ? (
                         <>
