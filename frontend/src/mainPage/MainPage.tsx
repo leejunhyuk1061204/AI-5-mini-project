@@ -1,13 +1,33 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import FileUpload from './components/FileUpload';
 import FileList from './components/FileList';
 import SttConversion from './components/SttConversion';
+import Sidebar from './components/Sidebar';
+import type { HistoryItem, SttResultData } from '../types';
 
 const MainPage: React.FC = () => {
     const [files, setFiles] = useState<File[]>([]);
     const [isDragging, setIsDragging] = useState(false);
     const [showStt, setShowStt] = useState(false);
     const [selectedFileIndex, setSelectedFileIndex] = useState<number | null>(null);
+
+    // History State
+    const [history, setHistory] = useState<HistoryItem[]>(() => {
+        try {
+            const saved = localStorage.getItem('stt_history');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            console.error('Failed to load history', e);
+            return [];
+        }
+    });
+
+    // Save history to local storage whenever it changes
+    useEffect(() => {
+        localStorage.setItem('stt_history', JSON.stringify(history));
+    }, [history]);
+
+    const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
 
     const formatFileSize = (bytes: number): string => {
         if (bytes === 0) return '0 Bytes';
@@ -61,8 +81,45 @@ const MainPage: React.FC = () => {
         setSelectedFileIndex(prev => prev === index ? null : index);
     }, []);
 
+    // History Logic
+    const handleNewChat = useCallback(() => {
+        setShowStt(false);
+        setSelectedHistoryId(null);
+        setSelectedFileIndex(null);
+    }, []);
+
+    const handleSelectHistory = useCallback((id: string) => {
+        setSelectedHistoryId(id);
+        setShowStt(true);
+    }, []);
+
+    const handleConversionComplete = useCallback((result: SttResultData) => {
+        if (selectedFileIndex === null) return;
+
+        const fileName = files[selectedFileIndex].name;
+        const newItem: HistoryItem = {
+            id: Date.now().toString(),
+            title: fileName,
+            date: new Date().toISOString(),
+            data: result
+        };
+
+        setHistory(prev => [newItem, ...prev]);
+        setSelectedHistoryId(newItem.id);
+    }, [files, selectedFileIndex]);
+
+    const activeHistoryItem = selectedHistoryId ? history.find(h => h.id === selectedHistoryId) : null;
+    const currentFileName = activeHistoryItem ? activeHistoryItem.title : (selectedFileIndex !== null ? files[selectedFileIndex]?.name : '');
+
     return (
         <div className="relative flex min-h-screen w-full flex-row overflow-hidden bg-[#f6f6f8] dark:bg-[#101622] font-['Inter',sans-serif] text-[#0d121b] dark:text-white antialiased">
+            {/* Sidebar */}
+            <Sidebar
+                history={history}
+                onSelectHistory={handleSelectHistory}
+                currentHistoryId={selectedHistoryId}
+            />
+
             <main className="flex-1 flex flex-col h-screen overflow-y-auto">
                 <div className="flex h-full grow flex-col">
                     <div className="flex flex-1 justify-center py-5 px-4 md:px-8 lg:px-12">
@@ -111,8 +168,16 @@ const MainPage: React.FC = () => {
                                 </>
                             ) : (
                                 <SttConversion
-                                    fileName={files[selectedFileIndex!]?.name || ''}
-                                    onCancel={() => setShowStt(false)}
+                                    fileName={currentFileName}
+                                    onCancel={() => {
+                                        if (activeHistoryItem) {
+                                            handleNewChat();
+                                        } else {
+                                            setShowStt(false);
+                                        }
+                                    }}
+                                    onConversionComplete={handleConversionComplete}
+                                    initialData={activeHistoryItem?.data}
                                 />
                             )}
                         </div>
