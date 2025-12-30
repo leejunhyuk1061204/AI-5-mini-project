@@ -23,3 +23,5 @@ uvicorn app.main:app --port 8001
 # 6. API 테스트
 http://localhost:8001/docs
 
+pip install -r requirements.txt
+uvicorn app.main:app --port 8001 --reload
