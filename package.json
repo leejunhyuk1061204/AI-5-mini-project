@@ -1,0 +1,24 @@
+{
+  "name": "ai-5-mini-project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/leejunhyuk1061204/AI-5-mini-project.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/leejunhyuk1061204/AI-5-mini-project/issues"
+  },
+  "homepage": "https://github.com/leejunhyuk1061204/AI-5-mini-project#readme",
+  "devDependencies": {
+    "@types/node": "^25.0.3"
+  }
+}
