@@ -214,7 +214,7 @@ const LiveSttPage: React.FC = () => {
             />
 
             <main className="flex-1 flex flex-col h-full overflow-hidden relative transition-all duration-300">
-                <div className="flex-1 flex flex-col max-w-[960px] mx-auto w-full p-4 md:p-8 pt-20">
+                <div className="flex-1 flex flex-col max-w-[960px] mx-auto w-full p-4 md:p-8 pt-20 min-h-0 overflow-hidden">
 
                     {/* Header */}
                     <div className="flex justify-between items-center mb-6">
@@ -262,7 +262,7 @@ const LiveSttPage: React.FC = () => {
                     </div>
 
                     {/* Transcript Area */}
-                    <div className="flex-1 bg-white rounded-2xl shadow-sm border border-[#cfd7e7] p-8 overflow-y-auto mb-20">
+                    <div className="flex-1 bg-white rounded-2xl shadow-sm border border-[#cfd7e7] p-8 overflow-y-auto min-h-0">
                         {transcripts.length === 0 && !interimTranscript && (
                             <div className="h-full flex flex-col items-center justify-center text-[#9aa6c2] gap-4 opacity-70">
                                 <span className="material-symbols-outlined text-[64px]">mic</span>
@@ -304,36 +304,36 @@ const LiveSttPage: React.FC = () => {
                             </div>
                         )}
                     </div>
-                </div>
 
-                {/* Floating Action Button for Mic */}
-                <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-4 z-10 w-full px-4">
-                    {isListening && (
-                        <div className="flex items-center gap-2 bg-[#135bec]/10 text-[#135bec] px-4 py-2 rounded-full backdrop-blur-sm border border-[#135bec]/20 animate-pulse">
-                            <div className="w-2 h-2 rounded-full bg-[#135bec]"></div>
-                            <span className="text-sm font-bold">듣고 있는 중...</span>
-                        </div>
-                    )}
-
-                    <button
-                        onClick={toggleListening}
-                        className={`
-                            group relative flex items-center justify-center w-16 h-16 rounded-full shadow-xl transition-all duration-300 transform hover:scale-105 active:scale-95
-                            ${isListening
-                                ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30'
-                                : 'bg-[#135bec] hover:bg-blue-700 shadow-blue-500/30'
-                            }
-                        `}
-                    >
-                        <span className="material-symbols-outlined text-white text-[32px]">
-                            {isListening ? 'stop' : 'mic'}
-                        </span>
-
-                        {/* Ripple Effect Ring */}
+                    {/* Mic Button Area - Static Position below Transcript */}
+                    <div className="flex flex-col items-center gap-4 pt-6 pb-2 shrink-0">
                         {isListening && (
-                            <span className="absolute inset-0 rounded-full border-2 border-red-500 animate-ping opacity-75"></span>
+                            <div className="flex items-center gap-2 bg-[#135bec]/10 text-[#135bec] px-4 py-2 rounded-full backdrop-blur-sm border border-[#135bec]/20 animate-pulse">
+                                <div className="w-2 h-2 rounded-full bg-[#135bec]"></div>
+                                <span className="text-sm font-bold">듣고 있는 중...</span>
+                            </div>
                         )}
-                    </button>
+
+                        <button
+                            onClick={toggleListening}
+                            className={`
+                                group relative flex items-center justify-center w-16 h-16 rounded-full shadow-xl transition-all duration-300 transform hover:scale-105 active:scale-95
+                                ${isListening
+                                    ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30'
+                                    : 'bg-[#135bec] hover:bg-blue-700 shadow-blue-500/30'
+                                }
+                            `}
+                        >
+                            <span className="material-symbols-outlined text-white text-[32px]">
+                                {isListening ? 'stop' : 'mic'}
+                            </span>
+
+                            {/* Ripple Effect Ring */}
+                            {isListening && (
+                                <span className="absolute inset-0 rounded-full border-2 border-red-500 animate-ping opacity-75"></span>
+                            )}
+                        </button>
+                    </div>
                 </div>
 
             </main>
