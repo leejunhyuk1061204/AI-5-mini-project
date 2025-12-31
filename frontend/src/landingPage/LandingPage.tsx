@@ -23,18 +23,18 @@ const LandingPage: React.FC = () => {
 
                 <div className="flex flex-col sm:flex-row gap-4">
                     <Link
-                        to="/upload"
+                        to="/live"
                         className="px-8 py-4 bg-[#135bec] text-white text-lg font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2"
                     >
                         <span>지금 시작하기</span>
                         <span className="material-symbols-outlined">arrow_forward</span>
                     </Link>
                     <Link
-                        to="/live"
+                        to="/upload"
                         className="px-8 py-4 bg-white text-[#444746] text-lg font-bold rounded-xl border border-[#e7ebf3] hover:bg-[#f8faff] transition-colors flex items-center justify-center gap-2"
                     >
-                        <span className="material-symbols-outlined text-[#135bec]">mic</span>
-                        <span>실시간 기록</span>
+                        <span className="material-symbols-outlined text-[#135bec]">upload_file</span>
+                        <span>파일 업로드</span>
                     </Link>
                 </div>
             </section>

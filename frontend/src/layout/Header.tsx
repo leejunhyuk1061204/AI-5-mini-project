@@ -19,15 +19,6 @@ const Header: React.FC = () => {
                     {/* Navigation - Moved to left next to logo */}
                     <nav className="flex items-center gap-1">
                         <Link
-                            to="/upload"
-                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/upload'
-                                ? 'text-[#135bec] bg-blue-50'
-                                : 'text-[#444746] hover:bg-[#f0f4f9]'
-                                }`}
-                        >
-                            파일 업로드
-                        </Link>
-                        <Link
                             to="/live"
                             className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/live'
                                 ? 'text-[#135bec] bg-blue-50'
@@ -35,6 +26,15 @@ const Header: React.FC = () => {
                                 }`}
                         >
                             실시간 회의록
+                        </Link>
+                        <Link
+                            to="/upload"
+                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/upload'
+                                ? 'text-[#135bec] bg-blue-50'
+                                : 'text-[#444746] hover:bg-[#f0f4f9]'
+                                }`}
+                        >
+                            파일 업로드
                         </Link>
                     </nav>
                 </div>

@@ -50,8 +50,24 @@ declare global {
 }
 
 const LiveSttPage: React.FC = () => {
+    // Load temp data
+    const loadTempData = () => {
+        try {
+            const saved = localStorage.getItem('live_stt_temp');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                return parsed;
+            }
+        } catch (e) {
+            console.error('Failed to load temp data', e);
+        }
+        return null;
+    };
+
+    const tempData = loadTempData();
+
     const [isListening, setIsListening] = useState(false);
-    const [transcripts, setTranscripts] = useState<string[]>([]);
+    const [transcripts, setTranscripts] = useState<string[]>(tempData?.transcripts || []);
     const [interimTranscript, setInterimTranscript] = useState('');
     const recognitionRef = useRef<SpeechRecognition | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -69,8 +85,17 @@ const LiveSttPage: React.FC = () => {
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    const [summary, setSummary] = useState<string | null>(null);
+    const [summary, setSummary] = useState<string | null>(tempData?.summary || null);
     const [isSummarizing, setIsSummarizing] = useState(false);
+
+    // Auto-save temp data
+    useEffect(() => {
+        const dataToSave = {
+            transcripts,
+            summary
+        };
+        localStorage.setItem('live_stt_temp', JSON.stringify(dataToSave));
+    }, [transcripts, summary]);
 
     // Save history to local storage whenever it changes
     useEffect(() => {
@@ -149,9 +174,11 @@ const LiveSttPage: React.FC = () => {
 
     // Clear transcript
     const handleClear = () => {
-        setTranscripts([]);
-        setInterimTranscript('');
-        setSummary(null);
+        if (window.confirm('정말로 기록을 삭제하시겠습니까? 임시 저장된 내용도 삭제됩니다.')) {
+            setTranscripts([]);
+            setInterimTranscript('');
+            setSummary(null);
+        }
     }
 
     const handleSave = () => {
