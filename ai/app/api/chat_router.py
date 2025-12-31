@@ -102,6 +102,10 @@ class ChatModel:
 _chat_model: Optional[ChatModel] = None
 
 
+def load_model():
+    """모델 명시적 로드"""
+    get_chat_model()
+
 def get_chat_model() -> ChatModel:
     """싱글톤 모델 인스턴스 반환"""
     global _chat_model
@@ -135,7 +139,12 @@ async def chat(req: ChatRequest):
         messages = []
         
         # 1. 시스템 프롬프트
-        system_prompt = "당신은 유용한 AI 어시스턴트입니다. 항상 한국어로 자연스럽게 답변해주세요. 프로그래밍 관련 질문에 친절하게 설명해야 합니다."
+        system_prompt = (
+            "당신은 'AI 회의록' 서비스의 지능형 어시스턴트입니다. "
+            "사용자의 회의 내용을 분석하여 요약, 할 일(Action Item) 추출, 일정 정리 등을 돕습니다. "
+            "또한 서비스 이용 방법에 대한 질문에도 친절하게 답변합니다. "
+            "모든 답변은 한국어로 명확하고 전문적인 어조로 작성해주세요."
+        )
         
         # 2. 컨텍스트가 있으면 시스템 프롬프트에 추가
         if req.context:
