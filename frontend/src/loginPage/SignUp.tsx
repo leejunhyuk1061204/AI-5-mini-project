@@ -7,12 +7,20 @@ const SignUp: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [error, setError] = useState<string | null>(null);
 
     const handleSignUp = (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
 
         if (password !== confirmPassword) {
-            alert('비밀번호가 일치하지 않습니다.');
+            setError('비밀번호가 일치하지 않습니다.');
+            return;
+        }
+
+        // Mock SignUp Error
+        if (name.includes('fail')) {
+            setError('이미 존재하는 이메일입니다.');
             return;
         }
 
@@ -38,6 +46,15 @@ const SignUp: React.FC = () => {
                         <h1 className="text-2xl font-extrabold text-[#0d121b] mb-2">회원가입</h1>
                         <p className="text-[#4c669a] text-sm">새로운 계정으로 시작해보세요</p>
                     </div>
+
+                    {error && (
+                        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3 animate-fade-in">
+                            <span className="material-symbols-outlined text-red-500 text-[20px] mt-0.5">error</span>
+                            <div className="text-sm text-red-600 font-medium leading-relaxed">
+                                {error}
+                            </div>
+                        </div>
+                    )}
 
                     <form onSubmit={handleSignUp} className="flex flex-col gap-5">
                         <div className="flex flex-col gap-1.5">

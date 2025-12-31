@@ -5,9 +5,18 @@ const Login: React.FC = () => {
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [error, setError] = useState<string | null>(null);
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
+
+        // Mock Login Logic
+        if (email.includes('fail')) {
+            setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+            return;
+        }
+
         // Here you would typically implement the login logic
         // For now, we'll just navigate to the main page
         console.log('Logging in with', email, password);
@@ -30,6 +39,15 @@ const Login: React.FC = () => {
                         <h1 className="text-2xl font-extrabold text-[#0d121b] mb-2">로그인</h1>
                         <p className="text-[#4c669a] text-sm">환영합니다! 계정에 로그인하세요.</p>
                     </div>
+
+                    {error && (
+                        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3 animate-fade-in">
+                            <span className="material-symbols-outlined text-red-500 text-[20px] mt-0.5">error</span>
+                            <div className="text-sm text-red-600 font-medium leading-relaxed">
+                                {error}
+                            </div>
+                        </div>
+                    )}
 
                     <form onSubmit={handleLogin}>
                         <div className="mb-5">
