@@ -72,6 +72,12 @@ const LiveSttPage: React.FC = () => {
     const recognitionRef = useRef<SpeechRecognition | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
 
+    // MediaRecorder for audio recording
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const mediaStreamRef = useRef<MediaStream | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+
     // History State
     const [history, setHistory] = useState<HistoryItem[]>(() => {
         try {
@@ -161,14 +167,100 @@ const LiveSttPage: React.FC = () => {
             if (recognitionRef.current) {
                 recognitionRef.current.stop();
             }
+            // Cleanup MediaRecorder
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+                mediaRecorderRef.current.stop();
+            }
+            if (mediaStreamRef.current) {
+                mediaStreamRef.current.getTracks().forEach(track => track.stop());
+            }
         };
     }, []);
 
-    const toggleListening = () => {
+    // Send audio to Java backend
+    const sendAudioToBackend = async (audioBlob: Blob, transcriptText: string) => {
+        setIsUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('audio', audioBlob, `recording_${Date.now()}.webm`);
+            formData.append('transcript', transcriptText);
+            formData.append('timestamp', new Date().toISOString());
+
+            // TODO: Java 백엔드 URL로 변경하세요
+            const response = await fetch('http://localhost:8080/api/recordings', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (response.ok) {
+                console.log('녹음 파일이 서버에 저장되었습니다.');
+            } else {
+                console.error('서버 저장 실패:', response.statusText);
+            }
+        } catch (error) {
+            console.error('녹음 파일 전송 중 오류:', error);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    // Start MediaRecorder
+    const startMediaRecorder = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaStreamRef.current = stream;
+
+            const mediaRecorder = new MediaRecorder(stream, {
+                mimeType: 'audio/webm;codecs=opus'
+            });
+
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const fullText = transcripts.join(' ');
+
+                // Send to backend
+                sendAudioToBackend(audioBlob, fullText);
+
+                // Stop all tracks
+                if (mediaStreamRef.current) {
+                    mediaStreamRef.current.getTracks().forEach(track => track.stop());
+                    mediaStreamRef.current = null;
+                }
+            };
+
+            mediaRecorder.start();
+            mediaRecorderRef.current = mediaRecorder;
+            console.log('MediaRecorder 시작됨');
+        } catch (error) {
+            console.error('마이크 접근 오류:', error);
+            alert('마이크 접근 권한을 허용해주세요.');
+        }
+    };
+
+    // Stop MediaRecorder
+    const stopMediaRecorder = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+            mediaRecorderRef.current = null;
+            console.log('MediaRecorder 정지됨');
+        }
+    };
+
+    const toggleListening = async () => {
         if (isListening) {
             recognitionRef.current?.stop();
+            stopMediaRecorder();
         } else {
             recognitionRef.current?.start();
+            await startMediaRecorder();
         }
     };
 
@@ -337,7 +429,13 @@ const LiveSttPage: React.FC = () => {
                         {isListening && (
                             <div className="flex items-center gap-2 bg-[#135bec]/10 text-[#135bec] px-4 py-2 rounded-full backdrop-blur-sm border border-[#135bec]/20 animate-pulse">
                                 <div className="w-2 h-2 rounded-full bg-[#135bec]"></div>
-                                <span className="text-sm font-bold">듣고 있는 중...</span>
+                                <span className="text-sm font-bold">녹음 중...</span>
+                            </div>
+                        )}
+                        {isUploading && (
+                            <div className="flex items-center gap-2 bg-green-500/10 text-green-600 px-4 py-2 rounded-full backdrop-blur-sm border border-green-500/20">
+                                <div className="w-4 h-4 border-2 border-green-500/30 border-t-green-500 rounded-full animate-spin"></div>
+                                <span className="text-sm font-bold">서버에 저장 중...</span>
                             </div>
                         )}
 
