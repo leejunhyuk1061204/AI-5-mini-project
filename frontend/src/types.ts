@@ -13,4 +13,5 @@ export interface HistoryItem {
     title: string;
     date: string;
     data: SttResultData;
+    type?: 'upload' | 'live';
 }
