@@ -1,21 +1,82 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { sendMessage, type ChatResponse } from '../api/chat';
 
 interface ChatbotProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
+interface Message {
+    id: number;
+    text: string;
+    isUser: boolean;
+    isError?: boolean;
+}
+
 const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
-    const [messages, setMessages] = useState<{ id: number; text: string; isUser: boolean }[]>([
+    const [messages, setMessages] = useState<Message[]>([
         { id: 1, text: "안녕하세요! 무엇을 도와드릴까요?", isUser: false },
         { id: 2, text: "회의록 요약이나 검색을 도와드릴 수 있습니다.", isUser: false }
     ]);
     const [inputValue, setInputValue] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [sessionId, setSessionId] = useState<string | undefined>(undefined);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const handleSendMessage = () => {
-        if (!inputValue.trim()) return;
-        setMessages(prev => [...prev, { id: Date.now(), text: inputValue, isUser: true }]);
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages, isLoading]);
+
+    const handleSendMessage = async () => {
+        if (!inputValue.trim() || isLoading) return;
+
+        const userMessage = inputValue.trim();
         setInputValue("");
+
+        // Add user message immediately
+        setMessages(prev => [...prev, { id: Date.now(), text: userMessage, isUser: true }]);
+        setIsLoading(true);
+
+        try {
+            // Prepare history for context (last 10 messages)
+            const history = messages.slice(-10).map(msg => ({
+                role: msg.isUser ? 'user' : 'assistant',
+                content: msg.text
+            }));
+
+            const response: ChatResponse = await sendMessage({
+                message: userMessage,
+                session_id: sessionId,
+                history: history
+            });
+
+            // Update session ID if established
+            if (response.session_id) {
+                setSessionId(response.session_id);
+            }
+
+            // Add bot response
+            setMessages(prev => [...prev, {
+                id: Date.now() + 1,
+                text: response.reply,
+                isUser: false
+            }]);
+
+        } catch (error) {
+            console.error(error);
+            setMessages(prev => [...prev, {
+                id: Date.now() + 1,
+                text: "죄송합니다. 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+                isUser: false,
+                isError: true
+            }]);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -23,8 +84,6 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
             handleSendMessage();
         }
     };
-
-    // if (!isOpen) return null; // Removed to support transition
 
     return (
         <div
@@ -57,13 +116,29 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
                         <div
                             className={`max-w-[85%] px-4 py-2 rounded-2xl text-sm leading-relaxed ${msg.isUser
                                 ? 'bg-[#135bec] text-white rounded-tr-none'
-                                : 'bg-white border border-[#e7ebf3] text-[#0d121b] rounded-tl-none shadow-sm'
+                                : msg.isError
+                                    ? 'bg-red-50 border border-red-200 text-red-600 rounded-tl-none'
+                                    : 'bg-white border border-[#e7ebf3] text-[#0d121b] rounded-tl-none shadow-sm'
                                 }`}
                         >
                             {msg.text}
                         </div>
                     </div>
                 ))}
+
+                {/* Loading Indicator */}
+                {isLoading && (
+                    <div className="flex justify-start">
+                        <div className="bg-white border border-[#e7ebf3] px-4 py-3 rounded-2xl rounded-tl-none shadow-sm">
+                            <div className="flex space-x-1">
+                                <div className="w-2 h-2 bg-[#135bec] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                <div className="w-2 h-2 bg-[#135bec] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                <div className="w-2 h-2 bg-[#135bec] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
@@ -75,15 +150,16 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyPress={handleKeyPress}
                         placeholder="메시지를 입력하세요..."
+                        disabled={isLoading}
                         className="flex-1 bg-transparent border-none outline-none text-sm text-[#0d121b] placeholder-[#444746]"
                     />
                     <button
                         onClick={handleSendMessage}
-                        className={`p-1.5 rounded-full transition-colors ${inputValue.trim()
+                        className={`p-1.5 rounded-full transition-colors ${inputValue.trim() && !isLoading
                             ? 'bg-[#135bec] text-white hover:bg-blue-700'
                             : 'bg-[#e7ebf0] text-[#9aa6c2] cursor-not-allowed'
                             }`}
-                        disabled={!inputValue.trim()}
+                        disabled={!inputValue.trim() || isLoading}
                     >
                         <span className="material-symbols-outlined text-[18px] leading-none flex items-center justify-center">send</span>
                     </button>
