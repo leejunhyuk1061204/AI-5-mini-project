@@ -7,20 +7,20 @@ const Header: React.FC = () => {
     return (
         <header className="sticky top-0 z-50 w-full border-b border-[#e7ebf3] bg-white/80 backdrop-blur-md">
             <div className="flex h-16 items-center justify-between px-4 md:px-8 max-w-[1400px] mx-auto">
-                <div className="flex items-center gap-8">
+                <div className="flex items-center gap-2 sm:gap-8">
                     {/* Left: Logo/Icon */}
                     <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#135bec] text-white">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#135bec] text-white shrink-0">
                             <span className="material-symbols-outlined text-[20px]">graphic_eq</span>
                         </div>
-                        <span className="text-[#0d121b] font-bold text-lg tracking-tight">AI 회의록</span>
+                        <span className="text-[#0d121b] font-bold text-lg tracking-tight hidden sm:block">AI 회의록</span>
                     </Link>
 
                     {/* Navigation - Moved to left next to logo */}
                     <nav className="flex items-center gap-1">
                         <Link
                             to="/live"
-                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/live'
+                            className={`px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${location.pathname === '/live'
                                 ? 'text-[#135bec] bg-blue-50'
                                 : 'text-[#444746] hover:bg-[#f0f4f9]'
                                 }`}
@@ -29,7 +29,7 @@ const Header: React.FC = () => {
                         </Link>
                         <Link
                             to="/upload"
-                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/upload'
+                            className={`px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${location.pathname === '/upload'
                                 ? 'text-[#135bec] bg-blue-50'
                                 : 'text-[#444746] hover:bg-[#f0f4f9]'
                                 }`}
