@@ -6,6 +6,8 @@ from app.api.chat_router import load_model
 from app.api.whisper_router import router as whisper_router
 from app.api.summarize import router as summarize_router
 from app.api.sbert_router import router as sbert_router
+from app.api.embedding_router import router as embedding_v2_router
+from app.api.embedding_router import load_model as load_embedding_v2_model
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -14,6 +16,7 @@ async def lifespan(app: FastAPI):
     print("🚀 서버 시작: AI 모델을 로드합니다. 잠시만 기다려주세요...", flush=True)
     try:
         load_model()
+        load_embedding_v2_model()
         print("✅ 모델 로드 완료! 서버가 준비되었습니다.", flush=True)
     except Exception as e:
         print(f"❌ 모델 로드 실패: {e}", flush=True)
@@ -48,5 +51,6 @@ app.include_router(chat_router)  # prefix="/api" already in router
 app.include_router(whisper_router)  # prefix="/api" already in router
 app.include_router(summarize_router)  # prefix="/api" already in router
 app.include_router(sbert_router)  # prefix="/api" already in router
+app.include_router(embedding_v2_router) # prefix="/api/v2" already in router
 
 
