@@ -134,16 +134,25 @@ const UploadPage: React.FC = () => {
             />
 
             <main className="flex-1 flex flex-col h-full overflow-y-auto transition-all duration-300 relative">
-                <div className="flex-1 flex flex-col max-w-[960px] mx-auto w-full p-4 md:p-8 pt-20">
+                <div className="flex-1 flex flex-col max-w-[960px] mx-auto w-full p-4 md:p-8 pt-2 md:pt-8">
                     {/* Header */}
-                    <div className="flex flex-wrap justify-between gap-3 pb-8">
-                        <div className="flex min-w-72 flex-col gap-2">
+                    <div className="flex flex-wrap justify-between gap-3 pb-4 md:pb-8">
+                        <div className="flex w-full flex-col gap-2">
                             <div className="flex items-center gap-4">
-                                <h1 className="text-[#0d121b] text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em]">
+                                {/* Mobile Sidebar Toggle */}
+                                <button
+                                    onClick={() => setIsSidebarOpen(true)}
+                                    className="p-2 -ml-2 rounded-lg hover:bg-[#e7ebf0] text-[#444746] transition-colors"
+                                    title="사이드바 열기"
+                                >
+                                    <span className="material-symbols-outlined text-[24px]">menu</span>
+                                </button>
+
+                                <h1 className="text-[#0d121b] text-2xl md:text-4xl font-black leading-tight tracking-tight">
                                     오디오 업로드
                                 </h1>
                             </div>
-                            <p className="text-[#4c669a] text-base font-normal leading-normal">
+                            <p className="text-[#4c669a] text-xs md:text-base font-normal leading-normal">
                                 AI가 회의 내용을 요약해 드립니다. MP3, M4A 포맷을 지원하며 최대 500MB까지 업로드 가능합니다.
                             </p>
                         </div>
