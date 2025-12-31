@@ -333,21 +333,30 @@ const LiveSttPage: React.FC = () => {
             />
 
             <main className="flex-1 flex flex-col h-full overflow-hidden relative transition-all duration-300">
-                <div className="flex-1 flex flex-col max-w-[960px] mx-auto w-full p-4 md:p-8 pt-20 min-h-0 overflow-hidden">
+                <div className="flex-1 flex flex-col max-w-[960px] mx-auto w-full p-4 md:p-8 pt-2 md:pt-8 min-h-0 overflow-hidden">
 
                     {/* Header */}
-                    <div className="flex justify-between items-center mb-6">
+                    <div className="flex flex-col items-start gap-4 mb-4 md:flex-row md:justify-between md:items-center">
                         <div className="flex items-center gap-4">
+                            {/* Mobile Sidebar Toggle */}
+                            <button
+                                onClick={() => setIsSidebarOpen(true)}
+                                className="p-2 -ml-2 rounded-lg hover:bg-[#e7ebf0] text-[#444746] transition-colors"
+                                title="사이드바 열기"
+                            >
+                                <span className="material-symbols-outlined text-[24px]">menu</span>
+                            </button>
+
                             <div>
-                                <h1 className="text-[#0d121b] text-3xl font-black tracking-tight mb-2">실시간 회의록</h1>
-                                <p className="text-[#4c669a] text-sm">마이크를 켜고 회의를 시작하세요. AI가 실시간으로 기록합니다.</p>
+                                <h1 className="text-[#0d121b] text-2xl md:text-3xl font-black tracking-tight mb-1 md:mb-2">실시간 회의록</h1>
+                                <p className="text-[#4c669a] text-xs md:text-sm">마이크를 켜고 회의를 시작하세요. AI가 실시간으로 기록합니다.</p>
                             </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 no-scrollbar">
                             <button
                                 onClick={handleSummarize}
                                 disabled={isSummarizing || isListening}
-                                className={`px-4 py-2 text-sm font-bold text-white rounded-lg transition-all shadow-sm flex items-center gap-2
+                                className={`px-3 py-2 md:px-4 text-sm font-bold text-white rounded-lg transition-all shadow-sm flex items-center gap-2 whitespace-nowrap shrink-0
                                     ${isSummarizing || isListening
                                         ? 'bg-gray-400 cursor-not-allowed'
                                         : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700'
@@ -367,13 +376,13 @@ const LiveSttPage: React.FC = () => {
                             </button>
                             <button
                                 onClick={handleSave}
-                                className="px-4 py-2 text-sm font-bold text-white bg-[#135bec] hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+                                className="px-3 py-2 md:px-4 text-sm font-bold text-white bg-[#135bec] hover:bg-blue-700 rounded-lg transition-colors shadow-sm whitespace-nowrap shrink-0"
                             >
                                 저장하기
                             </button>
                             <button
                                 onClick={handleClear}
-                                className="px-4 py-2 text-sm font-semibold text-[#4c669a] hover:bg-[#e7ebf3] rounded-lg transition-colors border border-transparent hover:border-[#cfd7e7]"
+                                className="px-3 py-2 md:px-4 text-sm font-semibold text-[#4c669a] hover:bg-[#e7ebf3] rounded-lg transition-colors border border-transparent hover:border-[#cfd7e7] whitespace-nowrap shrink-0"
                             >
                                 지우기
                             </button>
