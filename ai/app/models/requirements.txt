@@ -1,8 +1,0 @@
-faster-whisper
-transformers
-torch
-sentencepiece
-accelerate
-fastapi
-uvicorn
-python-multipart
