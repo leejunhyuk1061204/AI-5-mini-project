@@ -1,8 +1,8 @@
 # AI-5-mini-project
 
-# backend
-# 1. backend 폴더로 이동
-cd backend
+# ai
+# 1. ai 폴더로 이동
+cd ai
 
 # 2. conda 환경 생성 (최초 1회)
 conda create -n ai5-backend python=3.12

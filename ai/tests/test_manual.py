@@ -1,8 +1,8 @@
 import sys
 import os
 
-# backend 경로 추가
-sys.path.append(os.path.join(os.getcwd(), 'backend'))
+# ai 경로 추가
+sys.path.append(os.path.join(os.getcwd(), 'ai'))
 
 from app.services.minutes_service import generate_meeting_minutes
 
