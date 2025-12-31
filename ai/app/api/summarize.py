@@ -2,11 +2,55 @@
 회의록 요약 모듈 - Qwen2.5-0.5B-Instruct 모델 사용
 구조화된 JSON 형식의 회의록 생성
 """
+from fastapi import APIRouter
+from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import json
 import re
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
+
+# FastAPI 라우터 설정
+router = APIRouter(prefix="/api", tags=["summarize"])
+
+
+class SummarizeRequest(BaseModel):
+    text: str
+
+
+class SummarizeResponse(BaseModel):
+    description: str
+    core_summary: List[str]
+    meeting_type: str
+    topics: List[str]
+    decisions: List[str]
+    action_items: List[str]
+    pending_items: List[str]
+    parse_error: Optional[str] = None
+
+
+# 전역 요약 모델 인스턴스
+_summarizer: "MeetingSummarizer" = None
+
+
+def load_summarizer():
+    """요약 모델 로드"""
+    global _summarizer
+    if _summarizer is None:
+        _summarizer = MeetingSummarizer()
+    return _summarizer
+
+
+@router.post("/summarize", response_model=SummarizeResponse)
+async def summarize_text(request: SummarizeRequest):
+    """
+    회의 내용을 구조화된 JSON 형식으로 요약
+    
+    - **text**: 요약할 회의 텍스트
+    """
+    summarizer = load_summarizer()
+    result = summarizer.summarize(request.text)
+    return SummarizeResponse(**result)
 
 
 class MeetingSummarizer:

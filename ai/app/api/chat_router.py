@@ -1,5 +1,5 @@
 """
-챗봇 API 라우터 - Qwen2.5-0.5B-Instruct 모델 사용
+챗봇 API 라우터 - Qwen3-0.6B 모델 사용
 POST /api/chat 엔드포인트 제공
 """
 from fastapi import APIRouter, HTTPException
@@ -42,7 +42,7 @@ class ChatResponse(BaseModel):
 # ─────────────────────────────────────────────────────────────
 
 class ChatModel:
-    """Qwen2.5-0.5B-Instruct 모델 래퍼 - 한 번만 로드"""
+    """Qwen3-0.6B 모델 래퍼 - 한 번만 로드"""
     _instance = None
     _initialized = False
 
@@ -56,7 +56,7 @@ class ChatModel:
             return
         ChatModel._initialized = True
         
-        model_name = "Qwen/Qwen2.5-0.5B-Instruct"
+        model_name = "Qwen/Qwen3-0.6B"
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"[ChatModel] 모델 로딩 중: {model_name} (device: {self.device})")
         
