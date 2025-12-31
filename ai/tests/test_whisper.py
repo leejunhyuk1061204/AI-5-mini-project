@@ -1,7 +1,7 @@
 import sys
 import os
 
-# Add backend to path to allow imports
+# Add ai to path to allow imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'app')))
 
 from models.whisper_service import WhisperService

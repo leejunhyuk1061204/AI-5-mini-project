@@ -2,8 +2,8 @@ import sys
 import os
 import json
 
-# backend 경로 추가
-sys.path.append(os.path.join(os.getcwd(), 'backend'))
+# ai 경로 추가
+sys.path.append(os.path.join(os.getcwd(), 'ai'))
 
 from app.services.stt_service import speech_to_text
 from app.services.minutes_service import generate_meeting_minutes
@@ -41,5 +41,5 @@ def process_meeting_audio(audio_path: str):
 
 if __name__ == "__main__":
     # 사용자 요청 파일 경로
-    audio_file = r"backend/tests/test_audio.wav"
+    audio_file = r"ai/tests/test_audio.wav"
     process_meeting_audio(audio_file)

@@ -2,11 +2,11 @@ from google import genai
 import os
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.getcwd(), 'backend', '.env'))
+load_dotenv(os.path.join(os.getcwd(), 'ai', '.env'))
 api_key = os.getenv("GEMINI_API_KEY")
 
 if not api_key:
-    print("API Key not found in backend/.env")
+    print("API Key not found in ai/.env")
 else:
     client = genai.Client(api_key=api_key)
     print("Available models:")
