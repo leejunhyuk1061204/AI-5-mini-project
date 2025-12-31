@@ -2,10 +2,10 @@ import React, { useState, useCallback, useEffect } from 'react';
 import FileUpload from './components/FileUpload';
 import FileList from './components/FileList';
 import SttConversion from './components/SttConversion';
-import Sidebar from './components/Sidebar';
+import Sidebar from '../sidebar/Sidebar';
 import type { HistoryItem, SttResultData } from '../types';
 
-const MainPage: React.FC = () => {
+const UploadPage: React.FC = () => {
     const [files, setFiles] = useState<File[]>([]);
     const [isDragging, setIsDragging] = useState(false);
     const [showStt, setShowStt] = useState(false);
@@ -28,6 +28,8 @@ const MainPage: React.FC = () => {
     }, [history]);
 
     const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const formatFileSize = (bytes: number): string => {
         if (bytes === 0) return '0 Bytes';
@@ -108,85 +110,94 @@ const MainPage: React.FC = () => {
         setSelectedHistoryId(newItem.id);
     }, [files, selectedFileIndex]);
 
+    const handleDeleteHistory = (id: string) => {
+        setHistory(prev => prev.filter(item => item.id !== id));
+        if (selectedHistoryId === id) {
+            setShowStt(false);
+            setSelectedHistoryId(null);
+        }
+    };
+
     const activeHistoryItem = selectedHistoryId ? history.find(h => h.id === selectedHistoryId) : null;
     const currentFileName = activeHistoryItem ? activeHistoryItem.title : (selectedFileIndex !== null ? files[selectedFileIndex]?.name : '');
 
     return (
-        <div className="relative flex min-h-screen w-full flex-row overflow-hidden bg-[#f6f6f8] dark:bg-[#101622] font-['Inter',sans-serif] text-[#0d121b] dark:text-white antialiased">
+        <div className="relative flex h-full w-full flex-row overflow-hidden bg-[#f6f6f8] font-['Inter',sans-serif] text-[#0d121b] antialiased">
             {/* Sidebar */}
             <Sidebar
                 history={history}
                 onSelectHistory={handleSelectHistory}
+                onDelete={handleDeleteHistory}
                 currentHistoryId={selectedHistoryId}
+                isOpen={isSidebarOpen}
+                onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
             />
 
-            <main className="flex-1 flex flex-col h-screen overflow-y-auto">
-                <div className="flex h-full grow flex-col">
-                    <div className="flex flex-1 justify-center py-5 px-4 md:px-8 lg:px-12">
-                        <div className="flex flex-col max-w-[960px] flex-1">
-                            {/* Header */}
-                            <div className="flex flex-wrap justify-between gap-3 pb-8">
-                                <div className="flex min-w-72 flex-col gap-2">
-                                    <h1 className="text-[#0d121b] dark:text-white text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em]">
-                                        오디오 업로드
-                                    </h1>
-                                    <p className="text-[#4c669a] dark:text-gray-400 text-base font-normal leading-normal">
-                                        AI가 회의 내용을 요약해 드립니다. MP3, M4A 포맷을 지원하며 최대 500MB까지 업로드 가능합니다.
-                                    </p>
-                                </div>
+            <main className="flex-1 flex flex-col h-full overflow-y-auto transition-all duration-300 relative">
+                <div className="flex-1 flex flex-col max-w-[960px] mx-auto w-full p-4 md:p-8 pt-20">
+                    {/* Header */}
+                    <div className="flex flex-wrap justify-between gap-3 pb-8">
+                        <div className="flex min-w-72 flex-col gap-2">
+                            <div className="flex items-center gap-4">
+                                <h1 className="text-[#0d121b] text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em]">
+                                    오디오 업로드
+                                </h1>
                             </div>
-
-                            {/* Content Area */}
-                            {!showStt ? (
-                                <>
-                                    <FileUpload
-                                        onFilesSelected={handleFilesSelected}
-                                        isDragging={isDragging}
-                                        onDragOver={handleDragOver}
-                                        onDragLeave={handleDragLeave}
-                                        onDrop={handleDrop}
-                                    />
-
-                                    <FileList
-                                        files={files}
-                                        onRemoveFile={removeFile}
-                                        formatFileSize={formatFileSize}
-                                        selectedFileIndex={selectedFileIndex}
-                                        onSelectFile={handleSelectFile}
-                                    />
-
-                                    <div className="flex flex-col sm:flex-row gap-4 justify-end items-center pt-6 border-t border-[#e7ebf3] dark:border-gray-700 mt-auto pb-8">
-                                        <button
-                                            className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-[#135bec] hover:bg-blue-700 text-white text-sm font-semibold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            onClick={() => setShowStt(true)}
-                                            disabled={files.length === 0 || selectedFileIndex === null}
-                                        >
-                                            <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
-                                            회의록 생성
-                                        </button>
-                                    </div>
-                                </>
-                            ) : (
-                                <SttConversion
-                                    fileName={currentFileName}
-                                    onCancel={() => {
-                                        if (activeHistoryItem) {
-                                            handleNewChat();
-                                        } else {
-                                            setShowStt(false);
-                                        }
-                                    }}
-                                    onConversionComplete={handleConversionComplete}
-                                    initialData={activeHistoryItem?.data}
-                                />
-                            )}
+                            <p className="text-[#4c669a] text-base font-normal leading-normal">
+                                AI가 회의 내용을 요약해 드립니다. MP3, M4A 포맷을 지원하며 최대 500MB까지 업로드 가능합니다.
+                            </p>
                         </div>
                     </div>
+
+                    {/* Content Area */}
+                    {!showStt ? (
+                        <>
+                            <FileUpload
+                                onFilesSelected={handleFilesSelected}
+                                isDragging={isDragging}
+                                onDragOver={handleDragOver}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                            />
+
+                            <FileList
+                                files={files}
+                                onRemoveFile={removeFile}
+                                formatFileSize={formatFileSize}
+                                selectedFileIndex={selectedFileIndex}
+                                onSelectFile={handleSelectFile}
+                            />
+
+                            <div className="flex flex-col sm:flex-row gap-4 justify-end items-center pt-6 border-t border-[#e7ebf3] mt-auto pb-8">
+                                <button
+                                    className="w-full sm:w-auto px-6 py-2.5 rounded-lg bg-[#135bec] hover:bg-blue-700 text-white text-sm font-semibold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={() => setShowStt(true)}
+                                    disabled={files.length === 0 || selectedFileIndex === null}
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
+                                    회의록 생성
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <SttConversion
+                            fileName={currentFileName}
+                            onCancel={() => {
+                                if (activeHistoryItem) {
+                                    handleNewChat();
+                                } else {
+                                    setShowStt(false);
+                                }
+                            }}
+                            onConversionComplete={handleConversionComplete}
+                            initialData={activeHistoryItem?.data}
+                        />
+                    )}
                 </div>
             </main>
         </div>
     );
 };
 
-export default MainPage;
+export default UploadPage;
 

@@ -46,21 +46,21 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 className={`group relative flex flex-col items-center justify-center gap-6 rounded-xl border-2 border-dashed transition-all duration-300 px-6 py-16 cursor-pointer
           ${isDragging
                         ? 'border-[#135bec] bg-[#135bec]/10'
-                        : 'border-[#cfd7e7] dark:border-gray-700 bg-white dark:bg-[#1a2235] hover:border-[#135bec]/50 hover:bg-[#135bec]/5'
+                        : 'border-[#cfd7e7] bg-white hover:border-[#135bec]/50 hover:bg-[#135bec]/5'
                     }`}
                 onDragOver={onDragOver}
                 onDragLeave={onDragLeave}
                 onDrop={onDrop}
                 onClick={openFileDialog}
             >
-                <div className="bg-[#f0f4fd] dark:bg-[#135bec]/20 rounded-full p-4 group-hover:scale-110 transition-transform duration-300">
+                <div className="bg-[#f0f4fd] rounded-full p-4 group-hover:scale-110 transition-transform duration-300">
                     <span className="material-symbols-outlined text-[#135bec] text-[40px]">cloud_upload</span>
                 </div>
                 <div className="flex max-w-[480px] flex-col items-center gap-2 z-10">
-                    <p className="text-[#0d121b] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] text-center">
+                    <p className="text-[#0d121b] text-lg font-bold leading-tight tracking-[-0.015em] text-center">
                         이곳에 파일을 드래그 앤 드롭하세요
                     </p>
-                    <p className="text-[#4c669a] dark:text-gray-400 text-sm font-normal leading-normal text-center">
+                    <p className="text-[#4c669a] text-sm font-normal leading-normal text-center">
                         또는 클릭하여 파일을 찾아보세요
                     </p>
                 </div>
@@ -74,8 +74,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
                     <span className="truncate">파일 탐색</span>
                 </button>
                 <div className="absolute bottom-4 flex items-center gap-1.5 opacity-60">
-                    <span className="material-symbols-outlined text-[#4c669a] dark:text-gray-400 text-[16px]">lock</span>
-                    <span className="text-[#4c669a] dark:text-gray-400 text-xs">안전하게 암호화되어 처리됩니다</span>
+                    <span className="material-symbols-outlined text-[#4c669a] text-[16px]">lock</span>
+                    <span className="text-[#4c669a] text-xs">안전하게 암호화되어 처리됩니다</span>
                 </div>
             </div>
         </div>

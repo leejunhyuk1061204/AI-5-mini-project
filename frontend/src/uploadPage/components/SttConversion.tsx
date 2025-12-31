@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { SttResultData } from '../../types';
-// @ts-ignore
+
 import jsPDF from 'jspdf';
 
 interface SttConversionProps {
@@ -133,9 +133,9 @@ const SttConversion: React.FC<SttConversionProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-[#1a2235] rounded-xl shadow-sm border border-[#cfd7e7] dark:border-gray-700 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e7ebf3] dark:border-gray-700 bg-[#f8fafc] dark:bg-[#1e293b]">
-                <h2 className="text-lg font-bold text-[#0d121b] dark:text-white flex items-center gap-2">
+        <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-[#cfd7e7] overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e7ebf3] bg-[#f8fafc]">
+                <h2 className="text-lg font-bold text-[#0d121b] flex items-center gap-2">
                     <span className="material-symbols-outlined text-[#135bec]">graphic_eq</span>
                     {status === 'completed' ? 'STT 변환 결과' : 'STT 변환 진행상황'}
                 </h2>
@@ -143,18 +143,18 @@ const SttConversion: React.FC<SttConversionProps> = ({
                     {status === 'completed' && (
                         <button
                             onClick={handleExportPDF}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#135bec] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#135bec] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
                         >
                             <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
                             PDF 내보내기
                         </button>
                     )}
                     {status === 'processing' ? (
-                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300">
+                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
                             처리 중...
                         </span>
                     ) : (
-                        <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300">
+                        <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">
                             완료됨
                         </span>
                     )}
@@ -165,19 +165,19 @@ const SttConversion: React.FC<SttConversionProps> = ({
                 <div className="space-y-6">
                     {(status === 'processing' || !result) ? (
                         <>
-                            <div className="flex flex-col gap-1 pb-4 border-b border-[#e7ebf3] dark:border-gray-700">
-                                <span className="text-sm text-[#4c669a] dark:text-gray-400">현재 작업 중인 파일:</span>
-                                <span className="text-base font-semibold text-[#0d121b] dark:text-white truncate" title={fileName}>
+                            <div className="flex flex-col gap-1 pb-4 border-b border-[#e7ebf3]">
+                                <span className="text-sm text-[#4c669a]">현재 작업 중인 파일:</span>
+                                <span className="text-base font-semibold text-[#0d121b] truncate" title={fileName}>
                                     {fileName}
                                 </span>
                             </div>
 
                             <div className="flex flex-col gap-2">
-                                <div className="flex justify-between text-sm text-[#4c669a] dark:text-gray-400 mb-1">
+                                <div className="flex justify-between text-sm text-[#4c669a] mb-1">
                                     <span>변환 작업 처리 중입니다...</span>
                                     <span>{progress}%</span>
                                 </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                                <div className="w-full bg-gray-200 rounded-full h-2.5">
                                     <div
                                         className="h-2.5 rounded-full transition-all duration-300 bg-[#135bec]"
                                         style={{ width: `${progress}%` }}
@@ -185,9 +185,9 @@ const SttConversion: React.FC<SttConversionProps> = ({
                                 </div>
                             </div>
 
-                            <div className="bg-[#f0f4fd] dark:bg-gray-800/50 p-4 rounded-lg border border-[#cfd7e7] dark:border-gray-700">
-                                <p className="text-sm text-[#4c669a] dark:text-gray-400 mb-2 font-medium">실시간 로그:</p>
-                                <ul className="text-sm space-y-2 text-[#0d121b] dark:text-white font-mono">
+                            <div className="bg-[#f0f4fd] p-4 rounded-lg border border-[#cfd7e7]">
+                                <p className="text-sm text-[#4c669a] mb-2 font-medium">실시간 로그:</p>
+                                <ul className="text-sm space-y-2 text-[#0d121b] font-mono">
                                     {logs.map((log, index) => (
                                         <li key={index} className={`flex gap-2 ${log.status === 'active' ? 'animate-pulse' : ''}`}>
                                             {log.status === 'done' ? (
@@ -204,15 +204,15 @@ const SttConversion: React.FC<SttConversionProps> = ({
                     ) : (
                         <div className="space-y-8 animate-fade-in">
                             {/* Header Section */}
-                            <div className="space-y-3 pb-6 border-b border-[#e7ebf3] dark:border-gray-700">
+                            <div className="space-y-3 pb-6 border-b border-[#e7ebf3]">
                                 <div className="flex items-center gap-2">
-                                    <span className="bg-[#135bec]/10 text-[#135bec] text-xs font-bold px-2.5 py-1 rounded-full dark:bg-blue-900/30 dark:text-blue-300">
+                                    <span className="bg-[#135bec]/10 text-[#135bec] text-xs font-bold px-2.5 py-1 rounded-full">
                                         {result.meeting_type}
                                     </span>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                     {result.topics.map((topic, idx) => (
-                                        <span key={idx} className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full dark:bg-gray-800 dark:text-gray-400">
+                                        <span key={idx} className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full">
                                             #{topic}
                                         </span>
                                     ))}
@@ -221,19 +221,19 @@ const SttConversion: React.FC<SttConversionProps> = ({
 
                             {/* Overview Section */}
                             <div className="space-y-4">
-                                <h3 className="text-lg font-bold text-[#0d121b] dark:text-white flex items-center gap-2">
+                                <h3 className="text-lg font-bold text-[#0d121b] flex items-center gap-2">
                                     <span className="material-symbols-outlined text-[#135bec]">overview</span>
                                     회의 개요
                                 </h3>
-                                <p className="text-sm leading-relaxed text-[#0d121b] dark:text-gray-300">
+                                <p className="text-sm leading-relaxed text-[#0d121b]">
                                     {result.description}
                                 </p>
-                                <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30">
-                                    <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-2">핵심 요약</h4>
+                                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                    <h4 className="text-sm font-bold text-blue-800 mb-2">핵심 요약</h4>
                                     <ul className="space-y-1.5">
                                         {result.core_summary.map((item, idx) => (
-                                            <li key={idx} className="flex gap-2 text-sm text-blue-900 dark:text-blue-200">
-                                                <span className="text-blue-500 dark:text-blue-400 shrink-0">•</span>
+                                            <li key={idx} className="flex gap-2 text-sm text-blue-900">
+                                                <span className="text-blue-500 shrink-0">•</span>
                                                 {item}
                                             </li>
                                         ))}
@@ -244,14 +244,14 @@ const SttConversion: React.FC<SttConversionProps> = ({
                             {/* Grid Layout for Actionable Items */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* Decisions */}
-                                <div className="p-5 bg-white dark:bg-gray-800 rounded-xl border border-[#e7ebf3] dark:border-gray-700 shadow-sm">
-                                    <h3 className="text-sm font-bold text-[#0d121b] dark:text-white flex items-center gap-2 mb-3">
+                                <div className="p-5 bg-white rounded-xl border border-[#e7ebf3] shadow-sm">
+                                    <h3 className="text-sm font-bold text-[#0d121b] flex items-center gap-2 mb-3">
                                         <span className="material-symbols-outlined text-green-500 text-[20px]">check_circle</span>
                                         결정 사항
                                     </h3>
                                     <ul className="space-y-3">
                                         {result.decisions.map((item, idx) => (
-                                            <li key={idx} className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                                            <li key={idx} className="flex gap-3 text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
                                                 <span className="text-green-500 font-bold shrink-0">✓</span>
                                                 {item}
                                             </li>
@@ -260,14 +260,14 @@ const SttConversion: React.FC<SttConversionProps> = ({
                                 </div>
 
                                 {/* Action Items */}
-                                <div className="p-5 bg-white dark:bg-gray-800 rounded-xl border border-[#e7ebf3] dark:border-gray-700 shadow-sm">
-                                    <h3 className="text-sm font-bold text-[#0d121b] dark:text-white flex items-center gap-2 mb-3">
+                                <div className="p-5 bg-white rounded-xl border border-[#e7ebf3] shadow-sm">
+                                    <h3 className="text-sm font-bold text-[#0d121b] flex items-center gap-2 mb-3">
                                         <span className="material-symbols-outlined text-amber-500 text-[20px]">bolt</span>
                                         조치 필요 사항
                                     </h3>
                                     <ul className="space-y-3">
                                         {result.action_items.map((item, idx) => (
-                                            <li key={idx} className="flex gap-3 text-sm text-gray-700 dark:text-gray-300 bg-amber-50 dark:bg-amber-900/10 p-3 rounded-lg border border-amber-100 dark:border-amber-800/30">
+                                            <li key={idx} className="flex gap-3 text-sm text-gray-700 bg-amber-50 p-3 rounded-lg border border-amber-100">
                                                 <span className="text-amber-500 font-bold shrink-0">→</span>
                                                 {item}
                                             </li>
@@ -276,14 +276,14 @@ const SttConversion: React.FC<SttConversionProps> = ({
                                 </div>
 
                                 {/* Pending Items - Full width on mobile, span 2 on desktop if needed or just flow */}
-                                <div className="md:col-span-2 p-5 bg-white dark:bg-gray-800 rounded-xl border border-[#e7ebf3] dark:border-gray-700 shadow-sm">
-                                    <h3 className="text-sm font-bold text-[#0d121b] dark:text-white flex items-center gap-2 mb-3">
+                                <div className="md:col-span-2 p-5 bg-white rounded-xl border border-[#e7ebf3] shadow-sm">
+                                    <h3 className="text-sm font-bold text-[#0d121b] flex items-center gap-2 mb-3">
                                         <span className="material-symbols-outlined text-gray-400 text-[20px]">hourglass_empty</span>
                                         보류 및 논의 필요
                                     </h3>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {result.pending_items.map((item, idx) => (
-                                            <div key={idx} className="flex gap-2 items-center text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/30 px-3 py-2 rounded-lg">
+                                            <div key={idx} className="flex gap-2 items-center text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
                                                 <span className="material-symbols-outlined text-[16px]">help</span>
                                                 {item}
                                             </div>
@@ -293,13 +293,13 @@ const SttConversion: React.FC<SttConversionProps> = ({
                             </div>
 
                             {/* Full Script Section */}
-                            <div className="space-y-2 pt-4 border-t border-[#e7ebf3] dark:border-gray-700">
-                                <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 flex items-center gap-2 cursor-pointer hover:text-[#135bec] transition-colors">
+                            <div className="space-y-2 pt-4 border-t border-[#e7ebf3]">
+                                <h3 className="text-sm font-bold text-gray-500 flex items-center gap-2 cursor-pointer hover:text-[#135bec] transition-colors">
                                     <span className="material-symbols-outlined text-[18px]">description</span>
                                     전체 변환 텍스트 보기
                                 </h3>
                                 {/* Simple placeholder for now as per design */}
-                                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-[#e7ebf3] dark:border-gray-700 text-xs text-gray-400 italic">
+                                <div className="p-4 bg-gray-50 rounded-lg border border-[#e7ebf3] text-xs text-gray-400 italic">
                                     여기에 전체 대본이 표시됩니다... (현재는 요약 기능 시연 중)
                                 </div>
                             </div>
@@ -308,12 +308,12 @@ const SttConversion: React.FC<SttConversionProps> = ({
                 </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-[#e7ebf3] dark:border-gray-700 bg-[#f8fafc] dark:bg-[#1e293b] flex justify-end">
+            <div className="px-6 py-4 border-t border-[#e7ebf3] bg-[#f8fafc] flex justify-end">
                 <button
                     onClick={onCancel}
                     className={`px-4 py-2 rounded-lg border text-sm font-semibold transition-colors ${status === 'completed'
                         ? 'bg-[#135bec] hover:bg-blue-700 text-white border-transparent shadow-sm'
-                        : 'border-[#cfd7e7] dark:border-gray-600 text-[#0d121b] dark:text-white hover:bg-[#f0f2f5] dark:hover:bg-gray-800'
+                        : 'border-[#cfd7e7] text-[#0d121b] hover:bg-[#f0f2f5]'
                         }`}
                 >
                     {status === 'completed' ? '확인' : '취소'}
