@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -27,8 +28,8 @@ public class Member {
     @Column(name = "password", nullable = false, length = 255)
     private String password;
 
-    // DB에서 DEFAULT CURRENT_TIMESTAMP로 자동 생성되므로 insert/update 막음
-    @Column(name = "join_date", insertable = false, updatable = false)
+    @CreationTimestamp
+    @Column(name = "join_date", updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime joinDate;
 
     public Member(String name, String email, String password) {
