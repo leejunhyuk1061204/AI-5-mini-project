@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -27,15 +29,36 @@ public class Meeting {
     private String title;
 
     @Lob
-    @Column(name = "full_text", nullable = false, columnDefinition = "LONGTEXT")
-    private String fullText;
+    @Column(name = "full_text", columnDefinition = "LONGTEXT")
+    private String fullText; // 전체 회의록 요약본 등 저장 (nullable)
 
-    @Column(name = "created_at", insertable = false, updatable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    @ColumnDefault("'PROCEEDING'")
+    private MeetingStatus status = MeetingStatus.PROCEEDING; // 비동기 제어용
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false, columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
+
+    public Meeting(Member member, String title) {
+        this.member = member;
+        this.title = title;
+        this.status = MeetingStatus.PROCEEDING;
+    }
 
     public Meeting(Member member, String title, String fullText) {
         this.member = member;
         this.title = title;
+        this.fullText = fullText;
+        this.status = MeetingStatus.PROCEEDING;
+    }
+
+    public void updateStatus(MeetingStatus status) {
+        this.status = status;
+    }
+
+    public void updateFullText(String fullText) {
         this.fullText = fullText;
     }
 }

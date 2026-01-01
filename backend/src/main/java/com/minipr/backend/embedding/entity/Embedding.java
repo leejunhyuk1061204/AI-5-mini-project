@@ -1,11 +1,15 @@
 package com.minipr.backend.embedding.entity;
 
-import com.minipr.backend.meeting.entity.Meeting;
+import com.minipr.backend.segment.entity.MeetingSegment;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * Embedding 엔티티 - Segment와 1:1 관계
+ * MySQL 9.5의 VECTOR(768) 타입 사용
+ */
 @Entity
 @Table(name = "embeddings")
 @Getter
@@ -17,20 +21,20 @@ public class Embedding {
     @Column(name = "embedding_id", nullable = false)
     private Long embeddingId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "meeting_id", nullable = false)
-    private Meeting meeting;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "segment_id", nullable = false, unique = true)
+    private MeetingSegment segment; // 1:1 관계 (세그먼트당 하나)
 
-    @Lob
-    @Column(name = "chunk_text", nullable = false, columnDefinition = "LONGTEXT")
-    private String chunkText;
+    /**
+     * VECTOR(768) 타입은 Hibernate에서 직접 지원하지 않음
+     * Native Query로 INSERT/SELECT 처리 필요
+     * columnDefinition으로 DB 스키마에는 반영되도록 설정
+     */
+    @Column(name = "embedding", nullable = false, columnDefinition = "VECTOR(768)")
+    private byte[] embedding; // VECTOR는 byte[]로 매핑 시도, 실제로는 native query 사용
 
-    // vector(768)은 2단계에서 native query로 처리 추천
-    @Transient
-    private Object embeddingVector;
-
-    public Embedding(Meeting meeting, String chunkText) {
-        this.meeting = meeting;
-        this.chunkText = chunkText;
+    public Embedding(MeetingSegment segment, byte[] embedding) {
+        this.segment = segment;
+        this.embedding = embedding;
     }
 }

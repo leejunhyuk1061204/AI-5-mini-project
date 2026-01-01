@@ -3,8 +3,9 @@ package com.minipr.backend.embedding.repository;
 import com.minipr.backend.embedding.entity.Embedding;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
+import java.util.Optional;
 
 public interface EmbeddingRepository extends JpaRepository<Embedding, Long> {
-    List<Embedding> findByMeeting_MeetingId(Integer meetingId);
+
+    Optional<Embedding> findBySegmentSegmentId(Long segmentId);
 }
