@@ -114,6 +114,14 @@ async def transcribe(file: UploadFile = File(..., description="음성 파일 (mp
             Path(tmp_path).unlink(missing_ok=True)
     
     except Exception as e:
+        import traceback
+        print("=" * 50)
+        print("🚨 음성 변환 오류 발생!")
+        print(f"   파일명: {file.filename}")
+        print(f"   에러: {str(e)}")
+        print("상세 스택트레이스:")
+        traceback.print_exc()
+        print("=" * 50)
         raise HTTPException(
             status_code=500,
             detail=f"음성 변환 중 오류 발생: {str(e)}"

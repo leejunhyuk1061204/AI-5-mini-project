@@ -78,6 +78,10 @@ const LiveSttPage: React.FC = () => {
     const mediaStreamRef = useRef<MediaStream | null>(null);
     const [isUploading, setIsUploading] = useState(false);
 
+    // WebSocket for real-time audio streaming
+    const wsRef = useRef<WebSocket | null>(null);
+    const JAVA_WS_URL = import.meta.env.VITE_JAVA_WS_URL || 'ws://localhost:8080';
+
     // History State
     const [history, setHistory] = useState<HistoryItem[]>(() => {
         try {
@@ -204,11 +208,43 @@ const LiveSttPage: React.FC = () => {
         }
     };
 
+    // Connect WebSocket for audio streaming
+    const connectWebSocket = () => {
+        const ws = new WebSocket(`${JAVA_WS_URL}/ws/audio`);
+        ws.binaryType = 'arraybuffer';
+
+        ws.onopen = () => {
+            console.log('WebSocket 연결됨');
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket 종료됨');
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket 오류:', error);
+        };
+
+        wsRef.current = ws;
+    };
+
+    // Disconnect WebSocket
+    const disconnectWebSocket = () => {
+        if (wsRef.current) {
+            wsRef.current.close();
+            wsRef.current = null;
+            console.log('WebSocket 연결 해제됨');
+        }
+    };
+
     // Start MediaRecorder
     const startMediaRecorder = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaStreamRef.current = stream;
+
+            // Connect WebSocket first
+            connectWebSocket();
 
             const mediaRecorder = new MediaRecorder(stream, {
                 mimeType: 'audio/webm;codecs=opus'
@@ -219,6 +255,12 @@ const LiveSttPage: React.FC = () => {
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
                     audioChunksRef.current.push(event.data);
+
+                    // Send audio chunk via WebSocket (real-time streaming)
+                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                        wsRef.current.send(event.data);
+                        console.log(`오디오 청크 전송: ${event.data.size} bytes`);
+                    }
                 }
             };
 
@@ -226,7 +268,7 @@ const LiveSttPage: React.FC = () => {
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                 const fullText = transcripts.join(' ');
 
-                // Send to backend
+                // Send final audio to backend
                 sendAudioToBackend(audioBlob, fullText);
 
                 // Stop all tracks
@@ -236,9 +278,10 @@ const LiveSttPage: React.FC = () => {
                 }
             };
 
-            mediaRecorder.start();
+            // Start recording with 1-second chunks (timeslice = 1000ms)
+            mediaRecorder.start(1000);
             mediaRecorderRef.current = mediaRecorder;
-            console.log('MediaRecorder 시작됨');
+            console.log('MediaRecorder 시작됨 (1초 청크)');
         } catch (error) {
             console.error('마이크 접근 오류:', error);
             alert('마이크 접근 권한을 허용해주세요.');
@@ -252,6 +295,8 @@ const LiveSttPage: React.FC = () => {
             mediaRecorderRef.current = null;
             console.log('MediaRecorder 정지됨');
         }
+        // Disconnect WebSocket
+        disconnectWebSocket();
     };
 
     const toggleListening = async () => {

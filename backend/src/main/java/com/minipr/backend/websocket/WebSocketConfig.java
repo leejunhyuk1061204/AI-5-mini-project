@@ -1,0 +1,52 @@
+package com.minipr.backend.websocket;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.socket.config.annotation.EnableWebSocket;
+import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean;
+
+/**
+ * WebSocket 설정 클래스
+ * /ws/audio 엔드포인트로 오디오 스트리밍 지원
+ */
+@Configuration
+@EnableWebSocket
+public class WebSocketConfig implements WebSocketConfigurer {
+
+    @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
+    private String allowedOrigins;
+
+    private final WhisperApiClient whisperApiClient;
+
+    public WebSocketConfig(WhisperApiClient whisperApiClient) {
+        this.whisperApiClient = whisperApiClient;
+    }
+
+    @Override
+    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        registry.addHandler(audioWebSocketHandler(), "/ws/audio")
+                .setAllowedOrigins(allowedOrigins.split(","));
+    }
+
+    @Bean
+    public AudioWebSocketHandler audioWebSocketHandler() {
+        return new AudioWebSocketHandler(whisperApiClient);
+    }
+
+    /**
+     * WebSocket 메시지 버퍼 크기 설정
+     * 오디오 청크 크기가 기본 버퍼(8KB)보다 클 수 있으므로 512KB로 증가
+     */
+    @Bean
+    public ServletServerContainerFactoryBean createWebSocketContainer() {
+        ServletServerContainerFactoryBean container = new ServletServerContainerFactoryBean();
+        container.setMaxTextMessageBufferSize(512 * 1024); // 512KB
+        container.setMaxBinaryMessageBufferSize(512 * 1024); // 512KB
+        container.setAsyncSendTimeout(5000L); // 5초
+        container.setMaxSessionIdleTimeout(60000L); // 60초
+        return container;
+    }
+}
