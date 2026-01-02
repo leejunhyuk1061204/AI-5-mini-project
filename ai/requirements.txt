@@ -10,6 +10,9 @@ python-dotenv
 torch
 transformers
 accelerate
+pyannote.audio
+speechbrain
+omegaconf
 
 # 임베딩 모델
 sentence-transformers

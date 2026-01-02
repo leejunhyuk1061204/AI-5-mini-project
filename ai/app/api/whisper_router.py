@@ -49,7 +49,7 @@ class WhisperModelWrapper:
 
     def transcribe(self, audio_path: str) -> tuple:
         """음성 파일을 텍스트로 변환"""
-        segments, info = self.model.transcribe(audio_path, language="ko")
+        segments, info = self.model.transcribe(audio_path, language="ko", vad_filter=True)
         full_text = " ".join([segment.text for segment in segments])
         return full_text.strip(), info
 
@@ -78,6 +78,12 @@ async def transcribe(file: UploadFile = File(..., description="음성 파일 (mp
     """
     start_time = time.time()
     
+    # ===== 데이터 흐름 로그 =====
+    print("="*60)
+    print("🎤 [Python AI] Whisper API 요청 수신")
+    print(f"   📁 파일명: {file.filename}")
+    print(f"   📊 Content-Type: {file.content_type}")
+    
     # 파일 확장자 확인
     allowed_extensions = {".mp3", ".wav", ".m4a", ".mp4", ".flac", ".ogg", ".webm"}
     file_ext = Path(file.filename).suffix.lower()
@@ -97,11 +103,22 @@ async def transcribe(file: UploadFile = File(..., description="음성 파일 (mp
             tmp.write(content)
             tmp_path = tmp.name
         
+        print(f"   💾 파일 크기: {len(content)} bytes")
+        print(f"   🔄 Whisper 처리 시작...")
+        
         try:
             # 음성 변환
             text, info = model.transcribe(tmp_path)
             
             took_ms = int((time.time() - start_time) * 1000)
+            
+            # ===== 결과 로그 =====
+            print(f"   ✅ Whisper 처리 완료!")
+            print(f"   📝 인식 결과: {text[:100]}{'...' if len(text) > 100 else ''}")
+            print(f"   🌐 언어: {info.language}")
+            print(f"   ⏱️  오디오 길이: {round(info.duration, 2)}초")
+            print(f"   ⚡ 처리 시간: {took_ms}ms")
+            print("="*60)
             
             return TranscribeResponse(
                 text=text,
