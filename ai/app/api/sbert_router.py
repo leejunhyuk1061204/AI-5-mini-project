@@ -46,6 +46,7 @@ def load_sbert_model():
     global _model
     if _model is None:
 <<<<<<< HEAD
+<<<<<<< HEAD
         print("[SBERT] Loading KR-SBERT-V2-Freezing model...", flush=True)
         _model = SentenceTransformer("snunlp/KR-SBERT-V2-Freezing")
         print("[SBERT] Model loaded!", flush=True)
@@ -55,6 +56,13 @@ def load_sbert_model():
         _model = SentenceTransformer(model_name)
         print(f"✅ {model_name} 모델 로드 완료!", flush=True)
 >>>>>>> 71ec931 (temp: 작업 중 변경사항)
+=======
+
+        print("[SBERT] Loading KR-SBERT-V2-Freezing model...", flush=True)
+        _model = SentenceTransformer("snunlp/KR-SBERT-V2-Freezing")
+        print("[SBERT] Model loaded!", flush=True)
+
+>>>>>>> aee31b7 (Fix SBERT router after merge)
     return _model
 
 
