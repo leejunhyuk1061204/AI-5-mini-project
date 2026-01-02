@@ -45,9 +45,9 @@ def load_sbert_model():
     """SBERT 모델 로드"""
     global _model
     if _model is None:
-        print("🔄 KR-SBERT-V2-Freezing 모델 로딩 중...", flush=True)
+        print("[SBERT] Loading KR-SBERT-V2-Freezing model...", flush=True)
         _model = SentenceTransformer("snunlp/KR-SBERT-V2-Freezing")
-        print("✅ KR-SBERT 모델 로드 완료!", flush=True)
+        print("[SBERT] Model loaded!", flush=True)
     return _model
 
 

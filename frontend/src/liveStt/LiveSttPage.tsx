@@ -81,10 +81,14 @@ const LiveSttPage: React.FC = () => {
     // WebSocket for real-time audio streaming
     const wsRef = useRef<WebSocket | null>(null);
     const JAVA_WS_URL = import.meta.env.VITE_JAVA_WS_URL || 'ws://localhost:8080';
+    // HTTP API URL (ws:// → http://, wss:// → https://)
+    const JAVA_API_URL = JAVA_WS_URL.replace(/^ws/, 'http');
 
     // meetingId를 URL 파라미터에서 읽음 (예: /live?meetingId=1)
     const meetingIdParam = new URLSearchParams(window.location.search).get('meetingId');
     const MEETING_ID = meetingIdParam ? Number(meetingIdParam) : NaN;
+
+    const wsPingTimerRef = useRef<number | null>(null);
 
     // History State
     const [history, setHistory] = useState<HistoryItem[]>(() => {
@@ -122,8 +126,6 @@ const LiveSttPage: React.FC = () => {
         // In a real app, this might navigate or show history in a modal
     }, []);
 
-    const isListeningIntent = useRef(false);
-
     useEffect(() => {
         if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -137,17 +139,7 @@ const LiveSttPage: React.FC = () => {
             };
 
             recognition.onend = () => {
-                // If user intended to keep listening, restart it
-                if (isListeningIntent.current) {
-                    try {
-                        recognition.start();
-                    } catch (e) {
-                        // Ignore errors if already started
-                        console.log("Restarting recognition...");
-                    }
-                } else {
-                    setIsListening(false);
-                }
+                setIsListening(false);
             };
 
             recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -175,9 +167,7 @@ const LiveSttPage: React.FC = () => {
 
             recognition.onerror = (event) => {
                 console.error("Speech recognition error", event);
-                // On error, if valid intent, it will naturally go to onend and restart. 
-                // But sometimes error prevents restart immediately, so careful logic needed.
-                // For now, let it hit onend.
+                setIsListening(false);
             };
 
             recognitionRef.current = recognition;
@@ -186,7 +176,6 @@ const LiveSttPage: React.FC = () => {
         }
 
         return () => {
-            isListeningIntent.current = false; // Stop intent on unmount
             if (recognitionRef.current) {
                 recognitionRef.current.stop();
             }
@@ -196,6 +185,14 @@ const LiveSttPage: React.FC = () => {
             }
             if (mediaStreamRef.current) {
                 mediaStreamRef.current.getTracks().forEach(track => track.stop());
+            }
+            if (wsPingTimerRef.current) {
+                window.clearInterval(wsPingTimerRef.current);
+                wsPingTimerRef.current = null;
+            }
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
             }
         };
     }, []);
@@ -240,16 +237,37 @@ const LiveSttPage: React.FC = () => {
             ws.onopen = () => {
                 console.log('WebSocket 연결됨');
                 wsRef.current = ws;
+
+                if (wsPingTimerRef.current) {
+                    window.clearInterval(wsPingTimerRef.current);
+                    wsPingTimerRef.current = null;
+                }
+                wsPingTimerRef.current = window.setInterval(() => {
+                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                        wsRef.current.send("ping");
+                    }
+                }, 5000);
+
                 resolve(ws);
             };
 
             ws.onclose = (e) => {
                 console.log('WebSocket 종료됨', (e as CloseEvent).code, (e as CloseEvent).reason, "url=", ws.url);
-            };
 
+                if (wsPingTimerRef.current) {
+                    window.clearInterval(wsPingTimerRef.current);
+                    wsPingTimerRef.current = null;
+                }
+            };
 
             ws.onerror = (error) => {
                 console.error('WebSocket 오류:', error);
+
+                if (wsPingTimerRef.current) {
+                    window.clearInterval(wsPingTimerRef.current);
+                    wsPingTimerRef.current = null;
+                }
+
                 reject(error);
             };
         });
@@ -257,15 +275,17 @@ const LiveSttPage: React.FC = () => {
 
     // Disconnect WebSocket
     const disconnectWebSocket = () => {
+        if (wsPingTimerRef.current) {
+            window.clearInterval(wsPingTimerRef.current);
+            wsPingTimerRef.current = null;
+        }
+
         if (wsRef.current) {
-            console.log('🔌 [Frontend] WebSocket 연결 해제 중...');
             wsRef.current.close();
             wsRef.current = null;
+            console.log('WebSocket 연결 해제됨');
         }
     };
-
-    // Chunk counter for logging
-    const chunkCounterRef = useRef<number>(0);
 
     // Start MediaRecorder
     const startMediaRecorder = async () => {
@@ -275,52 +295,80 @@ const LiveSttPage: React.FC = () => {
                 return;
             }
 
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaStreamRef.current = stream;
 
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaStreamRef.current = stream;
+            await connectWebSocket();
 
-        await connectWebSocket();
-
-        const mediaRecorder = new MediaRecorder(stream, {
-            mimeType: 'audio/webm;codecs=opus'
-        });
-
-        audioChunksRef.current = [];
-
-        mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-                audioChunksRef.current.push(event.data);
-
-                if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                    wsRef.current.send(event.data);
-                    console.log(`오디오 청크 전송: ${event.data.size} bytes`);
-                } else {
-                    console.warn("WS 아직 OPEN 아님. 청크 전송 스킵");
-                }
-            }
-        };
-
-
-        mediaRecorder.onstop = () => {
-            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-            const fullText = transcripts.join(' ');
-            sendAudioToBackend(audioBlob, fullText);
-
-            if (mediaStreamRef.current) {
-                mediaStreamRef.current.getTracks().forEach(track => track.stop());
+            if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+                console.warn("WS 아직 OPEN 아님. 녹음을 시작할 수 없습니다.");
+                // stream 정리
+                stream.getTracks().forEach(t => t.stop());
                 mediaStreamRef.current = null;
+                return;
             }
-        };
 
-        mediaRecorder.start(1000);
-        mediaRecorderRef.current = mediaRecorder;
-        console.log('MediaRecorder 시작됨 (1초 청크)');
-    } catch (error) {
-        console.error('마이크 접근 오류:', error);
-        alert('마이크 접근 권한을 허용해주세요.');
-    }
-};
+            const mediaRecorder = new MediaRecorder(stream, {
+                mimeType: 'audio/webm;codecs=opus'
+            });
 
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+
+                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                        wsRef.current.send(event.data);
+                        console.log(`오디오 청크 전송: ${event.data.size} bytes`);
+                    } else {
+                        console.warn("WS 아직 OPEN 아님. 청크 전송 스킵");
+                    }
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const fullText = transcripts.join(' ');
+                sendAudioToBackend(audioBlob, fullText);
+
+                if (mediaStreamRef.current) {
+                    mediaStreamRef.current.getTracks().forEach(track => track.stop());
+                    mediaStreamRef.current = null;
+                }
+            };
+
+            mediaRecorder.start(1000);
+            mediaRecorderRef.current = mediaRecorder;
+            console.log('MediaRecorder 시작됨 (1초 청크)');
+        } catch (error) {
+            console.error('마이크 접근 오류:', error);
+            alert('마이크 접근 권한을 허용해주세요.');
+        }
+    };
+
+    // Download audio from server
+    const downloadAudioFromServer = async (meetingId: number) => {
+        try {
+            const response = await fetch(`${JAVA_API_URL}/api/files/download/${meetingId}`);
+            if (!response.ok) {
+                throw new Error('파일을 찾을 수 없습니다.');
+            }
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `meeting_${meetingId}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            console.log('✅ 오디오 파일 다운로드 완료');
+        } catch (error) {
+            console.error('❌ 오디오 파일 다운로드 실패:', error);
+            alert('오디오 파일 다운로드에 실패했습니다.');
+        }
+    };
 
     // Stop MediaRecorder
     const stopMediaRecorder = () => {
@@ -331,22 +379,22 @@ const LiveSttPage: React.FC = () => {
         }
         // Disconnect WebSocket
         disconnectWebSocket();
+
+        // Ask user if they want to download the audio file
+        // TODO: meetingId should be dynamic based on actual meeting
+        const meetingId = 1;
+        if (window.confirm('녹음이 종료되었습니다. 오디오 파일을 다운로드하시겠습니까?')) {
+            downloadAudioFromServer(meetingId);
+        }
     };
 
     const toggleListening = async () => {
         if (isListening) {
-            isListeningIntent.current = false; // User explicit stop
             recognitionRef.current?.stop();
             stopMediaRecorder();
         } else {
-            isListeningIntent.current = true; // User explicit start
-            try {
-                recognitionRef.current?.start();
-                await startMediaRecorder();
-            } catch (e) {
-                console.error("Failed to start", e);
-                isListeningIntent.current = false; // Revert if failed
-            }
+            recognitionRef.current?.start();
+            await startMediaRecorder();
         }
     };
 
