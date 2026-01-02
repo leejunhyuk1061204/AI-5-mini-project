@@ -81,6 +81,8 @@ const LiveSttPage: React.FC = () => {
     // WebSocket for real-time audio streaming
     const wsRef = useRef<WebSocket | null>(null);
     const JAVA_WS_URL = import.meta.env.VITE_JAVA_WS_URL || 'ws://localhost:8080';
+    // HTTP API URL (ws:// → http://, wss:// → https://)
+    const JAVA_API_URL = JAVA_WS_URL.replace(/^ws/, 'http');
 
     // meetingId를 URL 파라미터에서 읽음 (예: /live?meetingId=1)
     const meetingIdParam = new URLSearchParams(window.location.search).get('meetingId');
@@ -345,6 +347,29 @@ const LiveSttPage: React.FC = () => {
         }
     };
 
+    // Download audio from server
+    const downloadAudioFromServer = async (meetingId: number) => {
+        try {
+            const response = await fetch(`${JAVA_API_URL}/api/files/download/${meetingId}`);
+            if (!response.ok) {
+                throw new Error('파일을 찾을 수 없습니다.');
+            }
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `meeting_${meetingId}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            console.log('✅ 오디오 파일 다운로드 완료');
+        } catch (error) {
+            console.error('❌ 오디오 파일 다운로드 실패:', error);
+            alert('오디오 파일 다운로드에 실패했습니다.');
+        }
+    };
+
     // Stop MediaRecorder
     const stopMediaRecorder = () => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -354,6 +379,13 @@ const LiveSttPage: React.FC = () => {
         }
         // Disconnect WebSocket
         disconnectWebSocket();
+
+        // Ask user if they want to download the audio file
+        // TODO: meetingId should be dynamic based on actual meeting
+        const meetingId = 1;
+        if (window.confirm('녹음이 종료되었습니다. 오디오 파일을 다운로드하시겠습니까?')) {
+            downloadAudioFromServer(meetingId);
+        }
     };
 
     const toggleListening = async () => {

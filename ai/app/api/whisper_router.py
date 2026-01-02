@@ -80,9 +80,9 @@ async def transcribe(file: UploadFile = File(..., description="음성 파일 (mp
     
     # ===== 데이터 흐름 로그 =====
     print("="*60)
-    print("🎤 [Python AI] Whisper API 요청 수신")
-    print(f"   📁 파일명: {file.filename}")
-    print(f"   📊 Content-Type: {file.content_type}")
+    print("[Whisper] API Request received")
+    print(f"   File: {file.filename}")
+    print(f"   Content-Type: {file.content_type}")
     
     # 파일 확장자 확인
     allowed_extensions = {".mp3", ".wav", ".m4a", ".mp4", ".flac", ".ogg", ".webm"}
@@ -103,8 +103,8 @@ async def transcribe(file: UploadFile = File(..., description="음성 파일 (mp
             tmp.write(content)
             tmp_path = tmp.name
         
-        print(f"   💾 파일 크기: {len(content)} bytes")
-        print(f"   🔄 Whisper 처리 시작...")
+        print(f"   Size: {len(content)} bytes")
+        print(f"   [Whisper] Processing...")
         
         try:
             # 음성 변환
@@ -113,11 +113,11 @@ async def transcribe(file: UploadFile = File(..., description="음성 파일 (mp
             took_ms = int((time.time() - start_time) * 1000)
             
             # ===== 결과 로그 =====
-            print(f"   ✅ Whisper 처리 완료!")
-            print(f"   📝 인식 결과: {text[:100]}{'...' if len(text) > 100 else ''}")
-            print(f"   🌐 언어: {info.language}")
-            print(f"   ⏱️  오디오 길이: {round(info.duration, 2)}초")
-            print(f"   ⚡ 처리 시간: {took_ms}ms")
+            print(f"   [OK] Whisper done!")
+            print(f"   Result: {text[:100]}{'...' if len(text) > 100 else ''}")
+            print(f"   Language: {info.language}")
+            print(f"   Duration: {round(info.duration, 2)}s")
+            print(f"   Process time: {took_ms}ms")
             print("="*60)
             
             return TranscribeResponse(
@@ -133,7 +133,7 @@ async def transcribe(file: UploadFile = File(..., description="음성 파일 (mp
     except Exception as e:
         import traceback
         print("=" * 50)
-        print("🚨 음성 변환 오류 발생!")
+        print("[ERROR] Transcription failed!")
         print(f"   파일명: {file.filename}")
         print(f"   에러: {str(e)}")
         print("상세 스택트레이스:")
