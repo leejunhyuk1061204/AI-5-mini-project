@@ -94,7 +94,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
                     flex flex-col bg-white transition-all duration-300 overflow-hidden z-[70] shadow-[0_-4px_20px_rgba(0,0,0,0.15)]
                     
                     /* Mobile: Bottom Sheet */
-                    fixed bottom-0 left-0 right-0 rounded-t-2xl border-t border-[#e7ebf3] h-[92vh] lg:h-full
+                    fixed bottom-0 left-0 right-0 rounded-t-2xl border-t border-[#e7ebf3] h-[75vh] lg:h-full
                     ${isOpen
                         ? 'translate-y-0 opacity-100 visible'
                         : 'translate-y-full opacity-0 invisible lg:translate-y-0'
@@ -108,20 +108,20 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
                     }
                 `}
             >
-                {/* Mobile Handle (Tap to Close) */}
-                <div
-                    className="w-full flex justify-center py-3 bg-[#f8faff] lg:hidden cursor-pointer border-b border-[#e7ebf3]"
-                    onClick={onClose}
-                >
-                    <div className="w-12 h-1.5 bg-[#d1d5db] rounded-full pointer-events-none" />
-                </div>
-
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-[#e7ebf3] bg-[#f8faff] min-w-[350px]">
                     <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-[#135bec]">smart_toy</span>
                         <span className="font-bold text-[#0d121b]">AI Assistant</span>
                     </div>
+                    {/* Restored Close Button */}
+                    <button
+                        onClick={onClose}
+                        className="p-1 rounded-full hover:bg-[#e7ebf0] text-[#444746] transition-colors"
+                        title="닫기"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">close</span>
+                    </button>
                 </div>
 
                 {/* Messages Area */}
