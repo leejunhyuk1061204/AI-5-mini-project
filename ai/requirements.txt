@@ -1,0 +1,26 @@
+# FastAPI 웹 프레임워크
+fastapi
+uvicorn
+python-multipart
+
+# 환경변수 관리
+python-dotenv
+
+# AI/ML 모델 관련
+torch
+transformers
+accelerate
+pyannote.audio
+speechbrain
+omegaconf
+
+# 임베딩 모델
+sentence-transformers
+numpy
+
+# 음성인식 (Whisper)
+faster-whisper
+
+# LLM API 클라이언트
+openai
+google-genai
