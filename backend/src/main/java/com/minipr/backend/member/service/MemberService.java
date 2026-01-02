@@ -39,4 +39,16 @@ public class MemberService {
     public List<Member> list() {
         return memberRepository.findAll();
     }
+
+    @Transactional(readOnly = true)
+    public Member login(com.minipr.backend.member.dto.LoginRequest req) {
+        Member member = memberRepository.findByEmail(req.email())
+                .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 일치하지 않습니다."));
+
+        if (!member.getPassword().equals(req.password())) {
+            throw new IllegalArgumentException("이메일 또는 비밀번호가 일치하지 않습니다.");
+        }
+
+        return member;
+    }
 }

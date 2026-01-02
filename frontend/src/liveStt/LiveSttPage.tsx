@@ -118,6 +118,8 @@ const LiveSttPage: React.FC = () => {
         // In a real app, this might navigate or show history in a modal
     }, []);
 
+    const isListeningIntent = useRef(false);
+
     useEffect(() => {
         if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -131,7 +133,17 @@ const LiveSttPage: React.FC = () => {
             };
 
             recognition.onend = () => {
-                setIsListening(false);
+                // If user intended to keep listening, restart it
+                if (isListeningIntent.current) {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        // Ignore errors if already started
+                        console.log("Restarting recognition...");
+                    }
+                } else {
+                    setIsListening(false);
+                }
             };
 
             recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -159,7 +171,9 @@ const LiveSttPage: React.FC = () => {
 
             recognition.onerror = (event) => {
                 console.error("Speech recognition error", event);
-                setIsListening(false);
+                // On error, if valid intent, it will naturally go to onend and restart. 
+                // But sometimes error prevents restart immediately, so careful logic needed.
+                // For now, let it hit onend.
             };
 
             recognitionRef.current = recognition;
@@ -168,6 +182,7 @@ const LiveSttPage: React.FC = () => {
         }
 
         return () => {
+            isListeningIntent.current = false; // Stop intent on unmount
             if (recognitionRef.current) {
                 recognitionRef.current.stop();
             }
@@ -327,11 +342,18 @@ const LiveSttPage: React.FC = () => {
 
     const toggleListening = async () => {
         if (isListening) {
+            isListeningIntent.current = false; // User explicit stop
             recognitionRef.current?.stop();
             stopMediaRecorder();
         } else {
-            recognitionRef.current?.start();
-            await startMediaRecorder();
+            isListeningIntent.current = true; // User explicit start
+            try {
+                recognitionRef.current?.start();
+                await startMediaRecorder();
+            } catch (e) {
+                console.error("Failed to start", e);
+                isListeningIntent.current = false; // Revert if failed
+            }
         }
     };
 
