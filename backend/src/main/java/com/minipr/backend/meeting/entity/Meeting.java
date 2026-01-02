@@ -30,7 +30,11 @@ public class Meeting {
 
     @Lob
     @Column(name = "full_text", columnDefinition = "LONGTEXT")
-    private String fullText; // 전체 회의록 요약본 등 저장 (nullable)
+    private String fullText; // 전체 회의 기록 (화자 분리된 원문)
+
+    @Lob
+    @Column(name = "summary", columnDefinition = "LONGTEXT")
+    private String summary; // AI 요약 본
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -60,5 +64,9 @@ public class Meeting {
 
     public void updateFullText(String fullText) {
         this.fullText = fullText;
+    }
+
+    public void updateSummary(String summary) {
+        this.summary = summary;
     }
 }

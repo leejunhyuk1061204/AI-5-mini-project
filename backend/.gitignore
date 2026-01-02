@@ -37,5 +37,8 @@ out/
 .vscode/
 
 ### Local Config (개인 로컬 DB 설정) ###
-application-local.properties
 **/application-local.properties
+
+### File Storage ###
+uploads/
+**/uploads/

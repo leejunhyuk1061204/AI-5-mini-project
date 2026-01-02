@@ -29,9 +29,9 @@ def load_model():
     global _model
     if _model is None:
         model_name = "all-MiniLM-L6-v2"
-        print(f"🔄 Embedding 모델({model_name}) 로딩 중...", flush=True)
+        print(f"[Embedding] Loading model: {model_name}...", flush=True)
         _model = SentenceTransformer(model_name)
-        print("✅ Embedding 모델 로드 완료!", flush=True)
+        print("[Embedding] Model loaded!", flush=True)
     return _model
 
 def chunk_text(text: str, chunk_size: int = 500) -> List[str]:

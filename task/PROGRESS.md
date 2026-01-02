@@ -11,12 +11,21 @@
 - [x] Java Backend: `WebSocketConfig.java` - WebSocket 설정 (버퍼 512KB)
 - [x] Java Backend: `AudioWebSocketHandler.java` - Sliding Window 버퍼링 구현
 - [x] Java Backend: `WhisperApiClient.java` - Python AI 서버 호출
+- [x] Java Backend: `FileStorageService.java` - 오디오 파일 저장 (`uploads/meetings/`)
+- [x] Java Backend: `FileController.java` - 오디오 다운로드 API (`/api/files/download/{meetingId}`)
 - [x] Frontend: WebSocket 연결 및 1초 청크 전송 (`LiveSttPage.tsx`)
+- [x] Frontend: 녹음 종료 시 오디오 다운로드 팝업
 - [x] **통합 테스트 완료** - 5초마다 Whisper 호출 성공
 
 ### 2. STT 및 텍스트화
 - [x] Python AI: Whisper API 구현 (`/api/transcribe`)
+- [x] Python AI: VAD(음성 활동 감지) 기능 추가 (`vad_filter=True`)
 - [x] Frontend: Web Speech API 실시간 자막
+
+### 3. 최종 분석 인프라 (Final Analysis)
+- [x] Java Backend: `FinalSegment.java` 엔티티 생성
+- [x] Java Backend: `FinalEmbedding.java` 엔티티 생성
+- [x] DB 테이블 자동 생성 완료 (`final_segments`, `final_embeddings`)
 
 ---
 
@@ -58,12 +67,14 @@ Frontend (1초 청크) → Backend (5개 청크 누적) → Whisper API
 - [ ] Python AI: 임베딩 API 구현
 - [ ] Java Backend: 벡터 저장 로직
 
-### 5. 화자 분리 (Diarization)
-- [ ] Python AI: 화자 분리 API 구현
-- [ ] Java Backend: 회의 종료 시 트리거
+### 4. 화자 분리 (Diarization)
+- [ ] Python AI: pyannote 패키지 설치
+- [ ] Python AI: 화자 분리 API 활성화
+- [ ] Java Backend: 회의 종료 시 분석 트리거
+- [ ] Java Backend: Meeting.status 업데이트 (COMPLETED)
 
-### 6. RAG 챗봇 & 보고서
-- [ ] Python AI: RAG 검색 API 구현
+### 5. RAG 챗봇 & 보고서
+- [ ] Python AI: RAG 검색 API 구현 (Meeting.status에 따라 테이블 선택)
 - [ ] Python AI: LLM 보고서 생성 API 구현
 
 ---
