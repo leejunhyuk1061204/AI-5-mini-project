@@ -210,19 +210,27 @@ const LiveSttPage: React.FC = () => {
 
     // Connect WebSocket for audio streaming
     const connectWebSocket = () => {
+        console.log('========================================');
+        console.log('🔌 [Frontend] WebSocket 연결 시도...');
+        console.log(`   URL: ${JAVA_WS_URL}/ws/audio`);
+
         const ws = new WebSocket(`${JAVA_WS_URL}/ws/audio`);
         ws.binaryType = 'arraybuffer';
 
         ws.onopen = () => {
-            console.log('WebSocket 연결됨');
+            console.log('✅ [Frontend] WebSocket 연결 성공!');
+            console.log('========================================');
         };
 
-        ws.onclose = () => {
-            console.log('WebSocket 종료됨');
+        ws.onclose = (event) => {
+            console.log('========================================');
+            console.log('🔌 [Frontend] WebSocket 종료됨');
+            console.log(`   Code: ${event.code}, Reason: ${event.reason || '없음'}`);
+            console.log('========================================');
         };
 
         ws.onerror = (error) => {
-            console.error('WebSocket 오류:', error);
+            console.error('❌ [Frontend] WebSocket 오류:', error);
         };
 
         wsRef.current = ws;
@@ -231,17 +239,23 @@ const LiveSttPage: React.FC = () => {
     // Disconnect WebSocket
     const disconnectWebSocket = () => {
         if (wsRef.current) {
+            console.log('🔌 [Frontend] WebSocket 연결 해제 중...');
             wsRef.current.close();
             wsRef.current = null;
-            console.log('WebSocket 연결 해제됨');
         }
     };
+
+    // Chunk counter for logging
+    const chunkCounterRef = useRef<number>(0);
 
     // Start MediaRecorder
     const startMediaRecorder = async () => {
         try {
+            console.log('========================================');
+            console.log('🎤 [Frontend] 마이크 권한 요청 중...');
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaStreamRef.current = stream;
+            console.log('✅ [Frontend] 마이크 권한 획득!');
 
             // Connect WebSocket first
             connectWebSocket();
@@ -251,21 +265,32 @@ const LiveSttPage: React.FC = () => {
             });
 
             audioChunksRef.current = [];
+            chunkCounterRef.current = 0;
 
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
                     audioChunksRef.current.push(event.data);
+                    chunkCounterRef.current += 1;
 
                     // Send audio chunk via WebSocket (real-time streaming)
                     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                         wsRef.current.send(event.data);
-                        console.log(`오디오 청크 전송: ${event.data.size} bytes`);
+                        console.log(`📤 [Frontend] 청크 #${chunkCounterRef.current} 전송: ${event.data.size} bytes (${event.data.type})`);
+                    } else {
+                        console.warn(`⚠️ [Frontend] WebSocket 미연결 - 청크 #${chunkCounterRef.current} 전송 실패`);
                     }
                 }
             };
 
             mediaRecorder.onstop = () => {
+                console.log('========================================');
+                console.log('🛑 [Frontend] MediaRecorder 정지됨');
+                console.log(`   총 청크 수: ${chunkCounterRef.current}개`);
+
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                console.log(`   총 오디오 크기: ${audioBlob.size} bytes`);
+                console.log('========================================');
+
                 const fullText = transcripts.join(' ');
 
                 // Send final audio to backend
@@ -281,9 +306,10 @@ const LiveSttPage: React.FC = () => {
             // Start recording with 1-second chunks (timeslice = 1000ms)
             mediaRecorder.start(1000);
             mediaRecorderRef.current = mediaRecorder;
-            console.log('MediaRecorder 시작됨 (1초 청크)');
+            console.log('🎙️ [Frontend] MediaRecorder 시작됨 (1초 청크)');
+            console.log('========================================');
         } catch (error) {
-            console.error('마이크 접근 오류:', error);
+            console.error('❌ [Frontend] 마이크 접근 오류:', error);
             alert('마이크 접근 권한을 허용해주세요.');
         }
     };
