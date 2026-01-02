@@ -7,6 +7,7 @@ import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.BinaryWebSocketHandler;
+import com.minipr.backend.service.FileStorageService;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -19,7 +20,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AudioWebSocketHandler extends BinaryWebSocketHandler {
 
     private final WhisperApiClient whisperApiClient;
-    private final MeetingSegmentBufferService meetingSegmentBufferService; 
+    private final MeetingSegmentBufferService meetingSegmentBufferService;
+    private final FileStorageService fileStorageService;
+
+    // TODO: 세션별 Meeting ID 관리 로직 필요 (현재는 임시 ID 1L 사용)
+    private final Long currentMeetingId = 1L;
 
     private static final int BUFFER_SIZE = 5;
 
@@ -59,6 +64,11 @@ public class AudioWebSocketHandler extends BinaryWebSocketHandler {
         }
 
         byte[] audioData = message.getPayload().array();
+
+        // 1. 파일 시스템에 오디오 누적 저장 (Final 분석용)
+        fileStorageService.appendAudio(currentMeetingId, audioData);
+
+        // 2. 실시간 버퍼링 및 Whisper 요청 로직 (기존 유지)
         int chunkNumber = chunkCounters.getOrDefault(sessionId, 0) + 1;
         chunkCounters.put(sessionId, chunkNumber);
 
@@ -103,7 +113,8 @@ public class AudioWebSocketHandler extends BinaryWebSocketHandler {
                                 System.out.println("✅ Whisper 성공! [청크 " + (currentChunk - BUFFER_SIZE + 1) + "~"
                                         + currentChunk + "]");
                                 System.out.println("📝 인식 결과: " + response.getText());
-                                System.out.println("   언어: " + response.getLanguage() + ", 길이: " + response.getDuration() + "초");
+                                System.out.println(
+                                        "   언어: " + response.getLanguage() + ", 길이: " + response.getDuration() + "초");
                                 System.out.println("========================================");
 
                                 // 여기서 MeetingSegmentBufferService로 넘겨서 메모리 버퍼에 쌓기
@@ -112,7 +123,8 @@ public class AudioWebSocketHandler extends BinaryWebSocketHandler {
                                     meetingSegmentBufferService.accept(meetingId, text, null, null);
                                 }
 
-                                log.info("✅ Whisper 응답 저장큐로 전달: meetingId={}, text=\"{}\"", meetingId, response.getText());
+                                log.info("✅ Whisper 응답 저장큐로 전달: meetingId={}, text=\"{}\"", meetingId,
+                                        response.getText());
                             },
                             error -> {
                                 System.out.println("========================================");
@@ -131,7 +143,8 @@ public class AudioWebSocketHandler extends BinaryWebSocketHandler {
     private byte[] mergeHeaderAndChunks(byte[] header, List<byte[]> chunks) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         outputStream.write(header);
-        for (byte[] chunk : chunks) outputStream.write(chunk);
+        for (byte[] chunk : chunks)
+            outputStream.write(chunk);
         return outputStream.toByteArray();
     }
 
@@ -164,8 +177,7 @@ public class AudioWebSocketHandler extends BinaryWebSocketHandler {
                                     meetingSegmentBufferService.accept(meetingId, text, null, null);
                                 }
                             },
-                            error -> System.out.println("❌ 마지막 Whisper 실패: " + error.getMessage())
-                    );
+                            error -> System.out.println("❌ 마지막 Whisper 실패: " + error.getMessage()));
         }
 
         sessionHeaders.remove(sessionId);
@@ -191,7 +203,8 @@ public class AudioWebSocketHandler extends BinaryWebSocketHandler {
     private Integer extractMeetingId(WebSocketSession session) {
         try {
             URI uri = session.getUri();
-            if (uri == null || uri.getQuery() == null) return null;
+            if (uri == null || uri.getQuery() == null)
+                return null;
 
             // query 예: meetingId=1&foo=bar
             for (String part : uri.getQuery().split("&")) {
