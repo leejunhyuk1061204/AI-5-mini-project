@@ -9,7 +9,28 @@ const SignUp: React.FC = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
 
-    const handleSignUp = (e: React.FormEvent) => {
+    // const handleSignUp = (e: React.FormEvent) => {
+    //     e.preventDefault();
+    //     setError(null);
+
+    //     if (password !== confirmPassword) {
+    //         setError('비밀번호가 일치하지 않습니다.');
+    //         return;
+    //     }
+
+    //     // Mock SignUp Error
+    //     if (name.includes('fail')) {
+    //         setError('이미 존재하는 이메일입니다.');
+    //         return;
+    //     }
+
+    //     // SignUp logic here
+    //     console.log('Signing up with', name, email, password);
+    //     // Navigate to login or main page
+    //     navigate('/login');
+    // };
+
+    const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
 
@@ -18,16 +39,31 @@ const SignUp: React.FC = () => {
             return;
         }
 
-        // Mock SignUp Error
-        if (name.includes('fail')) {
-            setError('이미 존재하는 이메일입니다.');
-            return;
-        }
+        try {
+            const res = await fetch('/api/members', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name,
+                    email,
+                    password,
+                }),
+            });
 
-        // SignUp logic here
-        console.log('Signing up with', name, email, password);
-        // Navigate to login or main page
-        navigate('/login');
+            if (!res.ok) {
+                const data = await res.json();
+                setError(data.message ?? '회원가입에 실패했습니다.');
+                return;
+            }
+
+            // 성공
+            alert('회원가입이 완료되었습니다.');
+            navigate('/login');
+        } catch (err) {
+            setError('서버와 통신할 수 없습니다.');
+        }
     };
 
     return (

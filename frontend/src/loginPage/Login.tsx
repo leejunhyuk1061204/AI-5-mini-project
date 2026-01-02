@@ -7,20 +7,39 @@ const Login: React.FC = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
 
-        // Mock Login Logic
-        if (email.includes('fail')) {
-            setError('이메일 또는 비밀번호가 올바르지 않습니다.');
-            return;
-        }
+        try {
+            const res = await fetch('/api/members/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            });
 
-        // Here you would typically implement the login logic
-        // For now, we'll just navigate to the main page
-        console.log('Logging in with', email, password);
-        navigate('/');
+            if (!res.ok) {
+                const data = await res.json();
+                setError(data.message ?? '이메일 또는 비밀번호가 올바르지 않습니다.');
+                return;
+            }
+
+            const data = await res.json();
+            // data.data contains the MemberResponse (id, name, email)
+            const userData = data.data;
+
+            // Store user name for Header display
+            localStorage.setItem('userName', userData.name);
+
+            // Dispatch event to update Header immediately
+            window.dispatchEvent(new Event('login-success'));
+
+            navigate('/');
+        } catch (err) {
+            setError('서버와 통신할 수 없습니다.');
+        }
     };
 
     return (
