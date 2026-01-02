@@ -5,6 +5,6 @@ package com.minipr.backend.segment.entity;
  */
 public enum EmbeddingStatus {
     PENDING, // 대기 중
-    SUCCESS, // 성공
+    COMPLETED, // 성공
     FAILED // 실패
 }
