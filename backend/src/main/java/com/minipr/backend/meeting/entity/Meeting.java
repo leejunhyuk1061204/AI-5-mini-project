@@ -36,6 +36,10 @@ public class Meeting {
     @Column(name = "summary", columnDefinition = "LONGTEXT")
     private String summary; // AI 요약 본
 
+    @Lob
+    @Column(name = "summary", columnDefinition = "LONGTEXT")
+    private String summary; // AI 요약 본
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     @ColumnDefault("'PROCEEDING'")

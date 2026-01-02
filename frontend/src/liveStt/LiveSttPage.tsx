@@ -84,9 +84,39 @@ const LiveSttPage: React.FC = () => {
     // HTTP API URL (ws:// → http://, wss:// → https://)
     const JAVA_API_URL = JAVA_WS_URL.replace(/^ws/, 'http');
 
-    // meetingId를 URL 파라미터에서 읽음 (예: /live?meetingId=1)
-    const meetingIdParam = new URLSearchParams(window.location.search).get('meetingId');
-    const MEETING_ID = meetingIdParam ? Number(meetingIdParam) : NaN;
+    // Meeting ID state (녹음 시작 시 생성)
+    const [meetingId, setMeetingId] = useState<number | null>(null);
+
+    // 회의 생성 함수
+    const createMeeting = async (): Promise<number | null> => {
+        const memberId = localStorage.getItem('memberId');
+        if (!memberId) {
+            alert('로그인이 필요합니다.');
+            window.location.href = '/login';
+            return null;
+        }
+
+        try {
+            const response = await fetch('/api/meetings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    memberId: Number(memberId),
+                    title: `회의 ${new Date().toLocaleString()}`,
+                    fullText: ''
+                })
+            });
+
+            if (!response.ok) throw new Error('회의 생성 실패');
+            const data = await response.json();
+            console.log('회의 생성 완료:', data.data);
+            return data.data.id;
+        } catch (error) {
+            console.error('회의 생성 오류:', error);
+            alert('회의를 시작할 수 없습니다.');
+            return null;
+        }
+    };
 
     const wsPingTimerRef = useRef<number | null>(null);
 
@@ -205,7 +235,7 @@ const LiveSttPage: React.FC = () => {
             formData.append('audio', audioBlob, `recording_${Date.now()}.webm`);
             formData.append('transcript', transcriptText);
             formData.append('timestamp', new Date().toISOString());
-            formData.append('meetingId', String(MEETING_ID));
+            formData.append('meetingId', String(meetingId || 0));
 
             // TODO: Java 백엔드 URL로 변경하세요
             const response = await fetch('http://localhost:8080/api/recordings', {
@@ -226,10 +256,10 @@ const LiveSttPage: React.FC = () => {
     };
 
     // Connect WebSocket for audio streaming
-    const connectWebSocket = () => {
+    const connectWebSocket = (mId: number) => {
         return new Promise<WebSocket>((resolve, reject) => {
-            const wsUrl = `${JAVA_WS_URL}/ws/audio?meetingId=${MEETING_ID}`;
-            console.log("WS 연결 시도:", wsUrl, "MEETING_ID:", MEETING_ID);
+            const wsUrl = `${JAVA_WS_URL}/ws/audio?meetingId=${mId}`;
+            console.log("WS 연결 시도:", wsUrl, "meetingId:", mId);
 
             const ws = new WebSocket(wsUrl);
             ws.binaryType = 'arraybuffer';
@@ -290,15 +320,15 @@ const LiveSttPage: React.FC = () => {
     // Start MediaRecorder
     const startMediaRecorder = async () => {
         try {
-            if (!Number.isFinite(MEETING_ID)) {
-                alert("meetingId가 없습니다. /live?meetingId=1 형태로 접속해주세요.");
-                return;
-            }
+            // 1. 회의 생성
+            const newMeetingId = await createMeeting();
+            if (!newMeetingId) return;
+            setMeetingId(newMeetingId);
 
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaStreamRef.current = stream;
 
-            await connectWebSocket();
+            await connectWebSocket(newMeetingId);
 
             if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
                 console.warn("WS 아직 OPEN 아님. 녹음을 시작할 수 없습니다.");
@@ -381,9 +411,7 @@ const LiveSttPage: React.FC = () => {
         disconnectWebSocket();
 
         // Ask user if they want to download the audio file
-        // TODO: meetingId should be dynamic based on actual meeting
-        const meetingId = 1;
-        if (window.confirm('녹음이 종료되었습니다. 오디오 파일을 다운로드하시겠습니까?')) {
+        if (meetingId && window.confirm('녹음이 종료되었습니다. 오디오 파일을 다운로드하시겠습니까?')) {
             downloadAudioFromServer(meetingId);
         }
     };

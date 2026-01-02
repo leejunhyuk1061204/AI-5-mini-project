@@ -20,6 +20,7 @@ const Header: React.FC = () => {
 
     const handleLogout = () => {
         localStorage.removeItem('userName');
+        localStorage.removeItem('memberId');
         setUserName(null);
         window.location.href = '/'; // Reload to clear state perfectly
     };
