@@ -2,7 +2,7 @@
 KR-SBERT 임베딩 API - snunlp/KR-SBERT-V2-Freezing 모델 사용
 한국어 문장 임베딩 생성
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 from typing import List
@@ -45,9 +45,16 @@ def load_sbert_model():
     """SBERT 모델 로드"""
     global _model
     if _model is None:
+<<<<<<< HEAD
         print("[SBERT] Loading KR-SBERT-V2-Freezing model...", flush=True)
         _model = SentenceTransformer("snunlp/KR-SBERT-V2-Freezing")
         print("[SBERT] Model loaded!", flush=True)
+=======
+        model_name = "jhgan/ko-sroberta-multitask"
+        print(f"🔄 {model_name} 모델 로딩 중...", flush=True)
+        _model = SentenceTransformer(model_name)
+        print(f"✅ {model_name} 모델 로드 완료!", flush=True)
+>>>>>>> 71ec931 (temp: 작업 중 변경사항)
     return _model
 
 
@@ -58,9 +65,15 @@ async def get_embedding(request: EmbeddingRequest):
     
     - **text**: 임베딩할 텍스트
     """
-    model = load_sbert_model()
-    embedding = model.encode(request.text)
-    return EmbeddingResponse(embedding=embedding.tolist())
+    try:
+        model = load_sbert_model()
+        embedding = model.encode(request.text)
+        return EmbeddingResponse(embedding=embedding.tolist())
+    except Exception as e:
+        import traceback
+        print("!!! EMBEDDING ERROR !!!")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/embeddings", response_model=EmbeddingBatchResponse)
