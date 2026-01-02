@@ -1,6 +1,7 @@
 package com.minipr.backend.websocket;
 
 import com.minipr.backend.segment.service.MeetingSegmentBufferService;
+import com.minipr.backend.service.FileStorageService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,14 +22,16 @@ public class WebSocketConfig implements WebSocketConfigurer {
     private String allowedOrigins;
 
     private final WhisperApiClient whisperApiClient;
-    private final MeetingSegmentBufferService meetingSegmentBufferService; 
+    private final MeetingSegmentBufferService meetingSegmentBufferService;
+    private final FileStorageService fileStorageService;
 
     public WebSocketConfig(
             WhisperApiClient whisperApiClient,
-            MeetingSegmentBufferService meetingSegmentBufferService 
-    ) {
+            MeetingSegmentBufferService meetingSegmentBufferService,
+            FileStorageService fileStorageService) {
         this.whisperApiClient = whisperApiClient;
         this.meetingSegmentBufferService = meetingSegmentBufferService;
+        this.fileStorageService = fileStorageService;
     }
 
     @Override
@@ -39,7 +42,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Bean
     public AudioWebSocketHandler audioWebSocketHandler() {
-        return new AudioWebSocketHandler(whisperApiClient, meetingSegmentBufferService);
+        return new AudioWebSocketHandler(whisperApiClient, meetingSegmentBufferService, fileStorageService);
     }
 
     /**

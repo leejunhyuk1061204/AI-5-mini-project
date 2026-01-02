@@ -74,6 +74,37 @@ class DiarizationService:
             
         return results
 
+    def diarize_and_transcribe(self, audio_path: str, whisper_model):
+        """
+        오디오 파일을 분석하여 화자 분리 및 각 구간별 정밀 텍스트 추출(Whisper)을 수행합니다.
+        """
+        if self.pipeline is None:
+            self.load_model()
+            
+        print(f"[DiarizationService] 정밀 분석 시작 (Diarization + Whisper): {audio_path}")
+        diarization = self.pipeline(audio_path)
+        
+        results = []
+        for turn, _, speaker in diarization.itertracks(yield_label=True):
+            # faster-whisper의 clip_timestamps를 활용하여 화자별 구간만 전사
+            segments, _ = whisper_model.model.transcribe(
+                audio_path, 
+                language="ko",
+                clip_timestamps=f"{turn.start},{turn.end}"
+            )
+            
+            segment_text = " ".join([s.text for s in segments]).strip()
+            
+            if segment_text: # 텍스트가 있는 경우만 포함
+                results.append({
+                    "start": round(turn.start, 3),
+                    "end": round(turn.end, 3),
+                    "speaker": speaker,
+                    "text": segment_text
+                })
+            
+        return results
+
 # global instance
 _diarization_service = None
 

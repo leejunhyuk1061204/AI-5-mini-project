@@ -30,8 +30,9 @@ const Login: React.FC = () => {
             // data.data contains the MemberResponse (id, name, email)
             const userData = data.data;
 
-            // Store user name for Header display
+            // Store user info for Header display and meeting creation
             localStorage.setItem('userName', userData.name);
+            localStorage.setItem('memberId', String(userData.memberId));
 
             // Dispatch event to update Header immediately
             window.dispatchEvent(new Event('login-success'));
