@@ -74,9 +74,7 @@ const LiveSttPage: React.FC = () => {
 
     // MediaRecorder for audio recording
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const audioChunksRef = useRef<Blob[]>([]);
     const mediaStreamRef = useRef<MediaStream | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
 
     // WebSocket for real-time audio streaming
     const wsRef = useRef<WebSocket | null>(null);
@@ -85,8 +83,6 @@ const LiveSttPage: React.FC = () => {
     // meetingId를 URL 파라미터에서 읽음 (예: /live?meetingId=1)
     const meetingIdParam = new URLSearchParams(window.location.search).get('meetingId');
     const MEETING_ID = meetingIdParam ? Number(meetingIdParam) : NaN;
-
-    const wsPingTimerRef = useRef<number | null>(null);
 
     // History State
     const [history, setHistory] = useState<HistoryItem[]>(() => {
@@ -184,44 +180,12 @@ const LiveSttPage: React.FC = () => {
             if (mediaStreamRef.current) {
                 mediaStreamRef.current.getTracks().forEach(track => track.stop());
             }
-            if (wsPingTimerRef.current) {
-                window.clearInterval(wsPingTimerRef.current);
-                wsPingTimerRef.current = null;
-            }
             if (wsRef.current) {
                 wsRef.current.close();
                 wsRef.current = null;
             }
         };
     }, []);
-
-    // Send audio to Java backend
-    const sendAudioToBackend = async (audioBlob: Blob, transcriptText: string) => {
-        setIsUploading(true);
-        try {
-            const formData = new FormData();
-            formData.append('audio', audioBlob, `recording_${Date.now()}.webm`);
-            formData.append('transcript', transcriptText);
-            formData.append('timestamp', new Date().toISOString());
-            formData.append('meetingId', String(MEETING_ID));
-
-            // TODO: Java 백엔드 URL로 변경하세요
-            const response = await fetch('http://localhost:8080/api/recordings', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (response.ok) {
-                console.log('녹음 파일이 서버에 저장되었습니다.');
-            } else {
-                console.error('서버 저장 실패:', response.statusText);
-            }
-        } catch (error) {
-            console.error('녹음 파일 전송 중 오류:', error);
-        } finally {
-            setIsUploading(false);
-        }
-    };
 
     // Connect WebSocket for audio streaming
     const connectWebSocket = () => {
@@ -235,37 +199,15 @@ const LiveSttPage: React.FC = () => {
             ws.onopen = () => {
                 console.log('WebSocket 연결됨');
                 wsRef.current = ws;
-
-                if (wsPingTimerRef.current) {
-                    window.clearInterval(wsPingTimerRef.current);
-                    wsPingTimerRef.current = null;
-                }
-                wsPingTimerRef.current = window.setInterval(() => {
-                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                        wsRef.current.send("ping");
-                    }
-                }, 5000);
-
                 resolve(ws);
             };
 
             ws.onclose = (e) => {
                 console.log('WebSocket 종료됨', (e as CloseEvent).code, (e as CloseEvent).reason, "url=", ws.url);
-
-                if (wsPingTimerRef.current) {
-                    window.clearInterval(wsPingTimerRef.current);
-                    wsPingTimerRef.current = null;
-                }
             };
 
             ws.onerror = (error) => {
                 console.error('WebSocket 오류:', error);
-
-                if (wsPingTimerRef.current) {
-                    window.clearInterval(wsPingTimerRef.current);
-                    wsPingTimerRef.current = null;
-                }
-
                 reject(error);
             };
         });
@@ -273,11 +215,6 @@ const LiveSttPage: React.FC = () => {
 
     // Disconnect WebSocket
     const disconnectWebSocket = () => {
-        if (wsPingTimerRef.current) {
-            window.clearInterval(wsPingTimerRef.current);
-            wsPingTimerRef.current = null;
-        }
-
         if (wsRef.current) {
             wsRef.current.close();
             wsRef.current = null;
@@ -310,12 +247,8 @@ const LiveSttPage: React.FC = () => {
                 mimeType: 'audio/webm;codecs=opus'
             });
 
-            audioChunksRef.current = [];
-
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
-                    audioChunksRef.current.push(event.data);
-
                     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                         wsRef.current.send(event.data);
                         console.log(`오디오 청크 전송: ${event.data.size} bytes`);
@@ -326,14 +259,16 @@ const LiveSttPage: React.FC = () => {
             };
 
             mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const fullText = transcripts.join(' ');
-                sendAudioToBackend(audioBlob, fullText);
-
                 if (mediaStreamRef.current) {
                     mediaStreamRef.current.getTracks().forEach(track => track.stop());
                     mediaStreamRef.current = null;
                 }
+
+                // 마지막 청크까지 처리된 뒤 WebSocket 종료
+                disconnectWebSocket();
+
+                mediaRecorderRef.current = null;
+                console.log('MediaRecorder 완전히 정지됨');
             };
 
             mediaRecorder.start(1000);
@@ -349,11 +284,8 @@ const LiveSttPage: React.FC = () => {
     const stopMediaRecorder = () => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
             mediaRecorderRef.current.stop();
-            mediaRecorderRef.current = null;
-            console.log('MediaRecorder 정지됨');
+            console.log('MediaRecorder 정지 요청됨');
         }
-        // Disconnect WebSocket
-        disconnectWebSocket();
     };
 
     const toggleListening = async () => {
@@ -535,12 +467,6 @@ const LiveSttPage: React.FC = () => {
                             <div className="flex items-center gap-2 bg-[#135bec]/10 text-[#135bec] px-4 py-2 rounded-full backdrop-blur-sm border border-[#135bec]/20 animate-pulse">
                                 <div className="w-2 h-2 rounded-full bg-[#135bec]"></div>
                                 <span className="text-sm font-bold">녹음 중...</span>
-                            </div>
-                        )}
-                        {isUploading && (
-                            <div className="flex items-center gap-2 bg-green-500/10 text-green-600 px-4 py-2 rounded-full backdrop-blur-sm border border-green-500/20">
-                                <div className="w-4 h-4 border-2 border-green-500/30 border-t-green-500 rounded-full animate-spin"></div>
-                                <span className="text-sm font-bold">서버에 저장 중...</span>
                             </div>
                         )}
 
