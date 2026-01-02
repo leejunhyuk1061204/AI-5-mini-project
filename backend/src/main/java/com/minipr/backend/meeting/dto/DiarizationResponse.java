@@ -1,4 +1,4 @@
-package com.minipr.backend.meeting.dto;
+package com.minipr.backend.meeting.dto; 
 
 import java.util.List;
 
