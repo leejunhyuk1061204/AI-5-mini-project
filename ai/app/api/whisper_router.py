@@ -49,7 +49,7 @@ class WhisperModelWrapper:
 
     def transcribe(self, audio_path: str) -> tuple:
         """음성 파일을 텍스트로 변환"""
-        segments, info = self.model.transcribe(audio_path, language="ko")
+        segments, info = self.model.transcribe(audio_path, language="ko", vad_filter=True)
         full_text = " ".join([segment.text for segment in segments])
         return full_text.strip(), info
 

@@ -59,6 +59,7 @@ const SignUp: React.FC = () => {
             }
 
             // 성공
+            alert('회원가입이 완료되었습니다.');
             navigate('/login');
         } catch (err) {
             setError('서버와 통신할 수 없습니다.');
