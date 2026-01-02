@@ -14,8 +14,7 @@ conda activate ai5-backend
 pip install -r requirements.txt
 
 # 5. 서버 실행
-# 포트 충돌 시 8001 사용
-uvicorn app.main:app --port 8001
+# 포트
 
 # 6. API 테스트
 http://localhost:8001/docs
