@@ -5,9 +5,28 @@ import Footer from './Footer';
 import Chatbot from '../chatbot/Chatbot';
 
 const Layout: React.FC = () => {
-    const [isChatbotOpen, setIsChatbotOpen] = React.useState(true);
+    // Initialize open state based on screen width (Desktop: Open, Mobile: Closed)
+    const [isChatbotOpen, setIsChatbotOpen] = React.useState(window.innerWidth >= 1024);
     const location = useLocation();
     const isLandingPage = location.pathname === '/';
+
+    // Automatically handle visibility on window resize
+    React.useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth >= 1024) {
+                setIsChatbotOpen(true);
+            } else {
+                setIsChatbotOpen(false);
+            }
+        };
+
+        // Add event listener
+        window.addEventListener('resize', handleResize);
+
+        // Initial check is handled by useState initializer, but safe to verify
+        // Cleanup
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     return (
         <div className="flex flex-col h-screen overflow-hidden bg-[#f6f6f8] relative">
