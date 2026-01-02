@@ -74,51 +74,15 @@ const LiveSttPage: React.FC = () => {
 
     // MediaRecorder for audio recording
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const audioChunksRef = useRef<Blob[]>([]);
     const mediaStreamRef = useRef<MediaStream | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
 
     // WebSocket for real-time audio streaming
     const wsRef = useRef<WebSocket | null>(null);
     const JAVA_WS_URL = import.meta.env.VITE_JAVA_WS_URL || 'ws://localhost:8080';
-    // HTTP API URL (ws:// → http://, wss:// → https://)
-    const JAVA_API_URL = JAVA_WS_URL.replace(/^ws/, 'http');
 
-    // Meeting ID state (녹음 시작 시 생성)
-    const [meetingId, setMeetingId] = useState<number | null>(null);
-
-    // 회의 생성 함수
-    const createMeeting = async (): Promise<number | null> => {
-        const memberId = localStorage.getItem('memberId');
-        if (!memberId) {
-            alert('로그인이 필요합니다.');
-            window.location.href = '/login';
-            return null;
-        }
-
-        try {
-            const response = await fetch('/api/meetings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    memberId: Number(memberId),
-                    title: `회의 ${new Date().toLocaleString()}`,
-                    fullText: ''
-                })
-            });
-
-            if (!response.ok) throw new Error('회의 생성 실패');
-            const data = await response.json();
-            console.log('회의 생성 완료:', data.data);
-            return data.data.id;
-        } catch (error) {
-            console.error('회의 생성 오류:', error);
-            alert('회의를 시작할 수 없습니다.');
-            return null;
-        }
-    };
-
-    const wsPingTimerRef = useRef<number | null>(null);
+    // meetingId를 URL 파라미터에서 읽음 (예: /live?meetingId=1)
+    const meetingIdParam = new URLSearchParams(window.location.search).get('meetingId');
+    const MEETING_ID = meetingIdParam ? Number(meetingIdParam) : NaN;
 
     // History State
     const [history, setHistory] = useState<HistoryItem[]>(() => {
@@ -216,10 +180,6 @@ const LiveSttPage: React.FC = () => {
             if (mediaStreamRef.current) {
                 mediaStreamRef.current.getTracks().forEach(track => track.stop());
             }
-            if (wsPingTimerRef.current) {
-                window.clearInterval(wsPingTimerRef.current);
-                wsPingTimerRef.current = null;
-            }
             if (wsRef.current) {
                 wsRef.current.close();
                 wsRef.current = null;
@@ -227,39 +187,11 @@ const LiveSttPage: React.FC = () => {
         };
     }, []);
 
-    // Send audio to Java backend
-    const sendAudioToBackend = async (audioBlob: Blob, transcriptText: string) => {
-        setIsUploading(true);
-        try {
-            const formData = new FormData();
-            formData.append('audio', audioBlob, `recording_${Date.now()}.webm`);
-            formData.append('transcript', transcriptText);
-            formData.append('timestamp', new Date().toISOString());
-            formData.append('meetingId', String(meetingId || 0));
-
-            // TODO: Java 백엔드 URL로 변경하세요
-            const response = await fetch('http://localhost:8080/api/recordings', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (response.ok) {
-                console.log('녹음 파일이 서버에 저장되었습니다.');
-            } else {
-                console.error('서버 저장 실패:', response.statusText);
-            }
-        } catch (error) {
-            console.error('녹음 파일 전송 중 오류:', error);
-        } finally {
-            setIsUploading(false);
-        }
-    };
-
     // Connect WebSocket for audio streaming
-    const connectWebSocket = (mId: number) => {
+    const connectWebSocket = () => {
         return new Promise<WebSocket>((resolve, reject) => {
-            const wsUrl = `${JAVA_WS_URL}/ws/audio?meetingId=${mId}`;
-            console.log("WS 연결 시도:", wsUrl, "meetingId:", mId);
+            const wsUrl = `${JAVA_WS_URL}/ws/audio?meetingId=${MEETING_ID}`;
+            console.log("WS 연결 시도:", wsUrl, "MEETING_ID:", MEETING_ID);
 
             const ws = new WebSocket(wsUrl);
             ws.binaryType = 'arraybuffer';
@@ -267,37 +199,15 @@ const LiveSttPage: React.FC = () => {
             ws.onopen = () => {
                 console.log('WebSocket 연결됨');
                 wsRef.current = ws;
-
-                if (wsPingTimerRef.current) {
-                    window.clearInterval(wsPingTimerRef.current);
-                    wsPingTimerRef.current = null;
-                }
-                wsPingTimerRef.current = window.setInterval(() => {
-                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                        wsRef.current.send("ping");
-                    }
-                }, 5000);
-
                 resolve(ws);
             };
 
             ws.onclose = (e) => {
                 console.log('WebSocket 종료됨', (e as CloseEvent).code, (e as CloseEvent).reason, "url=", ws.url);
-
-                if (wsPingTimerRef.current) {
-                    window.clearInterval(wsPingTimerRef.current);
-                    wsPingTimerRef.current = null;
-                }
             };
 
             ws.onerror = (error) => {
                 console.error('WebSocket 오류:', error);
-
-                if (wsPingTimerRef.current) {
-                    window.clearInterval(wsPingTimerRef.current);
-                    wsPingTimerRef.current = null;
-                }
-
                 reject(error);
             };
         });
@@ -305,11 +215,6 @@ const LiveSttPage: React.FC = () => {
 
     // Disconnect WebSocket
     const disconnectWebSocket = () => {
-        if (wsPingTimerRef.current) {
-            window.clearInterval(wsPingTimerRef.current);
-            wsPingTimerRef.current = null;
-        }
-
         if (wsRef.current) {
             wsRef.current.close();
             wsRef.current = null;
@@ -320,15 +225,15 @@ const LiveSttPage: React.FC = () => {
     // Start MediaRecorder
     const startMediaRecorder = async () => {
         try {
-            // 1. 회의 생성
-            const newMeetingId = await createMeeting();
-            if (!newMeetingId) return;
-            setMeetingId(newMeetingId);
+            if (!Number.isFinite(MEETING_ID)) {
+                alert("meetingId가 없습니다. /live?meetingId=1 형태로 접속해주세요.");
+                return;
+            }
 
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaStreamRef.current = stream;
 
-            await connectWebSocket(newMeetingId);
+            await connectWebSocket();
 
             if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
                 console.warn("WS 아직 OPEN 아님. 녹음을 시작할 수 없습니다.");
@@ -342,12 +247,8 @@ const LiveSttPage: React.FC = () => {
                 mimeType: 'audio/webm;codecs=opus'
             });
 
-            audioChunksRef.current = [];
-
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
-                    audioChunksRef.current.push(event.data);
-
                     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                         wsRef.current.send(event.data);
                         console.log(`오디오 청크 전송: ${event.data.size} bytes`);
@@ -358,14 +259,16 @@ const LiveSttPage: React.FC = () => {
             };
 
             mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const fullText = transcripts.join(' ');
-                sendAudioToBackend(audioBlob, fullText);
-
                 if (mediaStreamRef.current) {
                     mediaStreamRef.current.getTracks().forEach(track => track.stop());
                     mediaStreamRef.current = null;
                 }
+
+                // 마지막 청크까지 처리된 뒤 WebSocket 종료
+                disconnectWebSocket();
+
+                mediaRecorderRef.current = null;
+                console.log('MediaRecorder 완전히 정지됨');
             };
 
             mediaRecorder.start(1000);
@@ -377,42 +280,11 @@ const LiveSttPage: React.FC = () => {
         }
     };
 
-    // Download audio from server
-    const downloadAudioFromServer = async (meetingId: number) => {
-        try {
-            const response = await fetch(`${JAVA_API_URL}/api/files/download/${meetingId}`);
-            if (!response.ok) {
-                throw new Error('파일을 찾을 수 없습니다.');
-            }
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `meeting_${meetingId}.webm`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-            console.log('✅ 오디오 파일 다운로드 완료');
-        } catch (error) {
-            console.error('❌ 오디오 파일 다운로드 실패:', error);
-            alert('오디오 파일 다운로드에 실패했습니다.');
-        }
-    };
-
     // Stop MediaRecorder
     const stopMediaRecorder = () => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
             mediaRecorderRef.current.stop();
-            mediaRecorderRef.current = null;
-            console.log('MediaRecorder 정지됨');
-        }
-        // Disconnect WebSocket
-        disconnectWebSocket();
-
-        // Ask user if they want to download the audio file
-        if (meetingId && window.confirm('녹음이 종료되었습니다. 오디오 파일을 다운로드하시겠습니까?')) {
-            downloadAudioFromServer(meetingId);
+            console.log('MediaRecorder 정지 요청됨');
         }
     };
 
@@ -595,12 +467,6 @@ const LiveSttPage: React.FC = () => {
                             <div className="flex items-center gap-2 bg-[#135bec]/10 text-[#135bec] px-4 py-2 rounded-full backdrop-blur-sm border border-[#135bec]/20 animate-pulse">
                                 <div className="w-2 h-2 rounded-full bg-[#135bec]"></div>
                                 <span className="text-sm font-bold">녹음 중...</span>
-                            </div>
-                        )}
-                        {isUploading && (
-                            <div className="flex items-center gap-2 bg-green-500/10 text-green-600 px-4 py-2 rounded-full backdrop-blur-sm border border-green-500/20">
-                                <div className="w-4 h-4 border-2 border-green-500/30 border-t-green-500 rounded-full animate-spin"></div>
-                                <span className="text-sm font-bold">서버에 저장 중...</span>
                             </div>
                         )}
 
