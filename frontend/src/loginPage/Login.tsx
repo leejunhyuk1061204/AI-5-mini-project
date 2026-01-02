@@ -32,7 +32,7 @@ const Login: React.FC = () => {
 
             // Store user info for Header display and meeting creation
             localStorage.setItem('userName', userData.name);
-            localStorage.setItem('memberId', String(userData.id));
+            localStorage.setItem('memberId', String(userData.memberId));
 
             // Dispatch event to update Header immediately
             window.dispatchEvent(new Event('login-success'));
