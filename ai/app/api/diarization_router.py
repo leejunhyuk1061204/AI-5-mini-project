@@ -5,6 +5,7 @@ import tempfile
 import time
 from pathlib import Path
 from app.services.diarization_service import get_diarization_service
+from app.api.whisper_router import get_whisper_model
 
 router = APIRouter(prefix="/api/v1", tags=["diarization"])
 
@@ -12,6 +13,7 @@ class DiarizationSegment(BaseModel):
     start: float = Field(..., description="시작 시간 (초)")
     end: float = Field(..., description="종료 시간 (초)")
     speaker: str = Field(..., description="화자 식별값")
+    text: str = Field("", description="해당 구간의 전사 텍스트")
 
 class DiarizationResponse(BaseModel):
     segments: List[DiarizationSegment]
@@ -64,6 +66,46 @@ async def diarize_audio(file: UploadFile = File(..., description="음성 파일 
         raise HTTPException(
             status_code=500,
             detail=f"화자 분리 처리 중 오류 발생: {str(e)}"
+        )
+
+@router.post("/diarize_and_transcribe", response_model=DiarizationResponse)
+async def diarize_and_transcribe_audio(file: UploadFile = File(..., description="음성 파일 (wav, mp3 등)")):
+    """
+    화자 분리 후 각 화자의 목소리 구간만 추출하여 Whisper로 정밀 전사합니다.
+    """
+    start_time = time.time()
+    file_ext = Path(file.filename).suffix.lower()
+    
+    try:
+        service = get_diarization_service()
+        whisper = get_whisper_model()
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+            content = await file.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        try:
+            # 화자 분리 + 정밀 전사 실행
+            segments_data = service.diarize_and_transcribe(tmp_path, whisper)
+            
+            segments = [DiarizationSegment(**s) for s in segments_data]
+            took_ms = int((time.time() - start_time) * 1000)
+
+            return DiarizationResponse(
+                segments=segments,
+                count=len(segments),
+                took_ms=took_ms
+            )
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"정밀 분석 중 오류 발생: {str(e)}"
         )
 
 def load_model():
