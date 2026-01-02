@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record CreateMeetingRequest(
-        @NotNull Integer memberId,
-        @NotBlank String title,
-        @NotBlank String fullText
-) {}
+                @NotNull Integer memberId,
+                @NotBlank String title,
+                String fullText) {
+}

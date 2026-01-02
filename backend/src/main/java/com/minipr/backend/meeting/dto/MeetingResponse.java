@@ -9,15 +9,15 @@ public record MeetingResponse(
         Integer memberId,
         String title,
         String fullText,
-        LocalDateTime createdAt
-) {
+        String summary,
+        LocalDateTime createdAt) {
     public static MeetingResponse from(Meeting m) {
         return new MeetingResponse(
                 m.getMeetingId(),
                 m.getMember().getMemberId(),
                 m.getTitle(),
                 m.getFullText(),
-                m.getCreatedAt()
-        );
+                m.getSummary(),
+                m.getCreatedAt());
     }
 }
