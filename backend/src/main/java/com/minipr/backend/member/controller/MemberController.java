@@ -38,4 +38,10 @@ public class MemberController {
                 .toList();
         return ApiResponse.ok(result);
     }
+
+    @PostMapping("/login")
+    public ApiResponse<MemberResponse> login(@Valid @RequestBody com.minipr.backend.member.dto.LoginRequest req) {
+        Member member = memberService.login(req);
+        return ApiResponse.ok(MemberResponse.from(member));
+    }
 }
