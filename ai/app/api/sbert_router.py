@@ -42,27 +42,12 @@ _model: SentenceTransformer = None
 
 
 def load_sbert_model():
-    """SBERT 모델 로드"""
-    global _model
+    global _model  # global 키워드 필수!
     if _model is None:
-<<<<<<< HEAD
-<<<<<<< HEAD
-        print("[SBERT] Loading KR-SBERT-V2-Freezing model...", flush=True)
-        _model = SentenceTransformer("snunlp/KR-SBERT-V2-Freezing")
-        print("[SBERT] Model loaded!", flush=True)
-=======
         model_name = "jhgan/ko-sroberta-multitask"
-        print(f"🔄 {model_name} 모델 로딩 중...", flush=True)
+        print(f"✅ {model_name} 모델 로드 중...", flush=True)
         _model = SentenceTransformer(model_name)
         print(f"✅ {model_name} 모델 로드 완료!", flush=True)
->>>>>>> 71ec931 (temp: 작업 중 변경사항)
-=======
-
-        print("[SBERT] Loading KR-SBERT-V2-Freezing model...", flush=True)
-        _model = SentenceTransformer("snunlp/KR-SBERT-V2-Freezing")
-        print("[SBERT] Model loaded!", flush=True)
-
->>>>>>> aee31b7 (Fix SBERT router after merge)
     return _model
 
 
