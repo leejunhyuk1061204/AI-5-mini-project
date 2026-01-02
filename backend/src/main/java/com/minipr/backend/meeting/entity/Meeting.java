@@ -30,7 +30,7 @@ public class Meeting {
 
     @Lob
     @Column(name = "full_text", columnDefinition = "LONGTEXT")
-    private String fullText; // 전체 회의록 요약본 등 저장 (nullable)
+    private String fullText; // 전체 회의 기록 (화자 분리된 원문)
 
     @Lob
     @Column(name = "summary", columnDefinition = "LONGTEXT")
