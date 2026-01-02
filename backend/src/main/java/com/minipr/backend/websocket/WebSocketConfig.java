@@ -1,5 +1,6 @@
 package com.minipr.backend.websocket;
 
+import com.minipr.backend.segment.service.MeetingSegmentBufferService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,13 +17,18 @@ import org.springframework.web.socket.server.standard.ServletServerContainerFact
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
 
-    @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
+    @Value("${cors.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
 
     private final WhisperApiClient whisperApiClient;
+    private final MeetingSegmentBufferService meetingSegmentBufferService; 
 
-    public WebSocketConfig(WhisperApiClient whisperApiClient) {
+    public WebSocketConfig(
+            WhisperApiClient whisperApiClient,
+            MeetingSegmentBufferService meetingSegmentBufferService 
+    ) {
         this.whisperApiClient = whisperApiClient;
+        this.meetingSegmentBufferService = meetingSegmentBufferService;
     }
 
     @Override
@@ -33,12 +39,11 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Bean
     public AudioWebSocketHandler audioWebSocketHandler() {
-        return new AudioWebSocketHandler(whisperApiClient);
+        return new AudioWebSocketHandler(whisperApiClient, meetingSegmentBufferService);
     }
 
     /**
      * WebSocket 메시지 버퍼 크기 설정
-     * 오디오 청크 크기가 기본 버퍼(8KB)보다 클 수 있으므로 512KB로 증가
      */
     @Bean
     public ServletServerContainerFactoryBean createWebSocketContainer() {

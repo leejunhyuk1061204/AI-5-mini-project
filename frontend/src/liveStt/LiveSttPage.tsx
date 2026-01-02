@@ -82,6 +82,10 @@ const LiveSttPage: React.FC = () => {
     const wsRef = useRef<WebSocket | null>(null);
     const JAVA_WS_URL = import.meta.env.VITE_JAVA_WS_URL || 'ws://localhost:8080';
 
+    // meetingId를 URL 파라미터에서 읽음 (예: /live?meetingId=1)
+    const meetingIdParam = new URLSearchParams(window.location.search).get('meetingId');
+    const MEETING_ID = meetingIdParam ? Number(meetingIdParam) : NaN;
+
     // History State
     const [history, setHistory] = useState<HistoryItem[]>(() => {
         try {
@@ -189,6 +193,7 @@ const LiveSttPage: React.FC = () => {
             formData.append('audio', audioBlob, `recording_${Date.now()}.webm`);
             formData.append('transcript', transcriptText);
             formData.append('timestamp', new Date().toISOString());
+            formData.append('meetingId', String(MEETING_ID));
 
             // TODO: Java 백엔드 URL로 변경하세요
             const response = await fetch('http://localhost:8080/api/recordings', {
@@ -210,22 +215,28 @@ const LiveSttPage: React.FC = () => {
 
     // Connect WebSocket for audio streaming
     const connectWebSocket = () => {
-        const ws = new WebSocket(`${JAVA_WS_URL}/ws/audio`);
-        ws.binaryType = 'arraybuffer';
+        return new Promise<WebSocket>((resolve, reject) => {
+            const wsUrl = `${JAVA_WS_URL}/ws/audio?meetingId=${MEETING_ID}`;
+            console.log("WS 연결 시도:", wsUrl, "MEETING_ID:", MEETING_ID);
 
-        ws.onopen = () => {
-            console.log('WebSocket 연결됨');
-        };
+            const ws = new WebSocket(wsUrl);
+            ws.binaryType = 'arraybuffer';
 
-        ws.onclose = () => {
-            console.log('WebSocket 종료됨');
-        };
+            ws.onopen = () => {
+                console.log('WebSocket 연결됨');
+                wsRef.current = ws;
+                resolve(ws);
+            };
 
-        ws.onerror = (error) => {
-            console.error('WebSocket 오류:', error);
-        };
+            ws.onclose = (e) => {
+                console.log('WebSocket 종료됨', (e as CloseEvent).code, (e as CloseEvent).reason, "url=", ws.url);
+            };
 
-        wsRef.current = ws;
+            ws.onerror = (error) => {
+                console.error('WebSocket 오류:', error);
+                reject(error);
+            };
+        });
     };
 
     // Disconnect WebSocket
@@ -240,53 +251,54 @@ const LiveSttPage: React.FC = () => {
     // Start MediaRecorder
     const startMediaRecorder = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaStreamRef.current = stream;
+            if (!Number.isFinite(MEETING_ID)) {
+                alert("meetingId가 없습니다. /live?meetingId=1 형태로 접속해주세요.");
+                return;
+            }
 
-            // Connect WebSocket first
-            connectWebSocket();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaStreamRef.current = stream;
 
-            const mediaRecorder = new MediaRecorder(stream, {
-                mimeType: 'audio/webm;codecs=opus'
-            });
+        await connectWebSocket();
 
-            audioChunksRef.current = [];
+        const mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'audio/webm;codecs=opus'
+        });
 
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    audioChunksRef.current.push(event.data);
+        audioChunksRef.current = [];
 
-                    // Send audio chunk via WebSocket (real-time streaming)
-                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                        wsRef.current.send(event.data);
-                        console.log(`오디오 청크 전송: ${event.data.size} bytes`);
-                    }
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunksRef.current.push(event.data);
+
+                if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(event.data);
+                    console.log(`오디오 청크 전송: ${event.data.size} bytes`);
+                } else {
+                    console.warn("WS 아직 OPEN 아님. 청크 전송 스킵");
                 }
-            };
+            }
+        };
 
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const fullText = transcripts.join(' ');
+        mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+            const fullText = transcripts.join(' ');
+            sendAudioToBackend(audioBlob, fullText);
 
-                // Send final audio to backend
-                sendAudioToBackend(audioBlob, fullText);
+            if (mediaStreamRef.current) {
+                mediaStreamRef.current.getTracks().forEach(track => track.stop());
+                mediaStreamRef.current = null;
+            }
+        };
 
-                // Stop all tracks
-                if (mediaStreamRef.current) {
-                    mediaStreamRef.current.getTracks().forEach(track => track.stop());
-                    mediaStreamRef.current = null;
-                }
-            };
-
-            // Start recording with 1-second chunks (timeslice = 1000ms)
-            mediaRecorder.start(1000);
-            mediaRecorderRef.current = mediaRecorder;
-            console.log('MediaRecorder 시작됨 (1초 청크)');
-        } catch (error) {
-            console.error('마이크 접근 오류:', error);
-            alert('마이크 접근 권한을 허용해주세요.');
-        }
-    };
+        mediaRecorder.start(1000);
+        mediaRecorderRef.current = mediaRecorder;
+        console.log('MediaRecorder 시작됨 (1초 청크)');
+    } catch (error) {
+        console.error('마이크 접근 오류:', error);
+        alert('마이크 접근 권한을 허용해주세요.');
+    }
+};
 
     // Stop MediaRecorder
     const stopMediaRecorder = () => {
@@ -319,9 +331,6 @@ const LiveSttPage: React.FC = () => {
     }
 
     const handleSave = () => {
-        // Validation removed for testing purposes
-        // if (transcripts.length === 0) { ... }
-
         const fullText = transcripts.join(' ');
         const newItem: HistoryItem = {
             id: Date.now().toString(),
@@ -345,9 +354,6 @@ const LiveSttPage: React.FC = () => {
     };
 
     const handleSummarize = () => {
-        // Validation removed for testing purposes
-        // if (transcripts.length === 0) { ... }
-
         setIsSummarizing(true);
 
         // Mock API call delay
