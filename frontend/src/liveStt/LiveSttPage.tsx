@@ -72,6 +72,12 @@ const LiveSttPage: React.FC = () => {
     const recognitionRef = useRef<SpeechRecognition | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
 
+    // Keep transcripts in ref for access in closures
+    const transcriptsRef = useRef<string[]>([]);
+    useEffect(() => {
+        transcriptsRef.current = transcripts;
+    }, [transcripts]);
+
     // MediaRecorder for audio recording
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
@@ -89,9 +95,13 @@ const LiveSttPage: React.FC = () => {
 
     // 회의 생성 함수
     const createMeeting = async (): Promise<number | null> => {
-        const memberId = localStorage.getItem('memberId');
-        if (!memberId) {
-            alert('로그인이 필요합니다.');
+        const memberIdStr = localStorage.getItem('memberId');
+        const memberId = Number(memberIdStr);
+
+        if (!memberIdStr || isNaN(memberId) || memberId === 0) {
+            alert('로그인 정보가 올바르지 않습니다. 다시 로그인해주세요.');
+            localStorage.removeItem('memberId'); // Clear bad data
+            localStorage.removeItem('userName');
             window.location.href = '/login';
             return null;
         }
@@ -101,19 +111,24 @@ const LiveSttPage: React.FC = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    memberId: Number(memberId),
+                    memberId: memberId,
                     title: `회의 ${new Date().toLocaleString()}`,
                     fullText: ''
                 })
             });
 
-            if (!response.ok) throw new Error('회의 생성 실패');
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`회의 생성 실패: ${response.status} ${response.statusText} - ${errorText}`);
+            }
             const data = await response.json();
             console.log('회의 생성 완료:', data.data);
             return data.data.id;
         } catch (error) {
             console.error('회의 생성 오류:', error);
-            alert('회의를 시작할 수 없습니다.');
+            // Error assertion for Typescript
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            alert(`회의를 시작할 수 없습니다.\n오류 내용: ${errorMessage}`);
             return null;
         }
     };
@@ -357,9 +372,11 @@ const LiveSttPage: React.FC = () => {
                 }
             };
 
+
+
             mediaRecorder.onstop = () => {
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const fullText = transcripts.join(' ');
+                const fullText = transcriptsRef.current.join(' ');
                 sendAudioToBackend(audioBlob, fullText);
 
                 if (mediaStreamRef.current) {
@@ -410,10 +427,15 @@ const LiveSttPage: React.FC = () => {
         // Disconnect WebSocket
         disconnectWebSocket();
 
-        // Ask user if they want to download the audio file
-        if (meetingId && window.confirm('녹음이 종료되었습니다. 오디오 파일을 다운로드하시겠습니까?')) {
-            downloadAudioFromServer(meetingId);
-        }
+        // Ask to download audio
+        setTimeout(() => {
+            console.log('녹음 종료. meetingId:', meetingId); // Debug log
+            if (meetingId && window.confirm('녹음이 종료되었습니다. 오디오 파일을 다운로드하시겠습니까?')) {
+                downloadAudioFromServer(meetingId);
+            } else {
+                console.log('Prompt conditions not met:', { meetingId });
+            }
+        }, 500);
     };
 
     const toggleListening = async () => {
