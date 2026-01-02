@@ -92,6 +92,7 @@ const LiveSttPage: React.FC = () => {
 
     // Meeting ID state (녹음 시작 시 생성)
     const [meetingId, setMeetingId] = useState<number | null>(null);
+    const meetingIdRef = useRef<number | null>(null); // Ref for immediate access
 
     // 회의 생성 함수
     const createMeeting = async (): Promise<number | null> => {
@@ -123,7 +124,7 @@ const LiveSttPage: React.FC = () => {
             }
             const data = await response.json();
             console.log('회의 생성 완료:', data.data);
-            return data.data.id;
+            return data.data.meetingId;
         } catch (error) {
             console.error('회의 생성 오류:', error);
             // Error assertion for Typescript
@@ -242,33 +243,7 @@ const LiveSttPage: React.FC = () => {
         };
     }, []);
 
-    // Send audio to Java backend
-    const sendAudioToBackend = async (audioBlob: Blob, transcriptText: string) => {
-        setIsUploading(true);
-        try {
-            const formData = new FormData();
-            formData.append('audio', audioBlob, `recording_${Date.now()}.webm`);
-            formData.append('transcript', transcriptText);
-            formData.append('timestamp', new Date().toISOString());
-            formData.append('meetingId', String(meetingId || 0));
 
-            // TODO: Java 백엔드 URL로 변경하세요
-            const response = await fetch('http://localhost:8080/api/recordings', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (response.ok) {
-                console.log('녹음 파일이 서버에 저장되었습니다.');
-            } else {
-                console.error('서버 저장 실패:', response.statusText);
-            }
-        } catch (error) {
-            console.error('녹음 파일 전송 중 오류:', error);
-        } finally {
-            setIsUploading(false);
-        }
-    };
 
     // Connect WebSocket for audio streaming
     const connectWebSocket = (mId: number) => {
@@ -339,6 +314,7 @@ const LiveSttPage: React.FC = () => {
             const newMeetingId = await createMeeting();
             if (!newMeetingId) return;
             setMeetingId(newMeetingId);
+            meetingIdRef.current = newMeetingId;
 
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaStreamRef.current = stream;
@@ -375,10 +351,8 @@ const LiveSttPage: React.FC = () => {
 
 
             mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const fullText = transcriptsRef.current.join(' ');
-                sendAudioToBackend(audioBlob, fullText);
-
+                // Audio saving is handled via WebSocket stream.
+                // Just cleanup streams here.
                 if (mediaStreamRef.current) {
                     mediaStreamRef.current.getTracks().forEach(track => track.stop());
                     mediaStreamRef.current = null;
@@ -429,11 +403,12 @@ const LiveSttPage: React.FC = () => {
 
         // Ask to download audio
         setTimeout(() => {
-            console.log('녹음 종료. meetingId:', meetingId); // Debug log
-            if (meetingId && window.confirm('녹음이 종료되었습니다. 오디오 파일을 다운로드하시겠습니까?')) {
-                downloadAudioFromServer(meetingId);
+            const currentMeetingId = meetingIdRef.current;
+            console.log('녹음 종료. meetingId (Ref):', currentMeetingId); // Debug log
+            if (currentMeetingId && window.confirm('녹음이 종료되었습니다. 오디오 파일을 다운로드하시겠습니까?')) {
+                downloadAudioFromServer(currentMeetingId);
             } else {
-                console.log('Prompt conditions not met:', { meetingId });
+                console.log('Prompt conditions not met:', { currentMeetingId });
             }
         }, 500);
     };
