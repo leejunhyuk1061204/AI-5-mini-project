@@ -7,5 +7,5 @@ import java.util.Optional;
 
 public interface EmbeddingRepository extends JpaRepository<Embedding, Long> {
 
-    Optional<Embedding> findBySegmentSegmentId(Long segmentId);
+        Optional<Embedding> findBySegmentSegmentId(Long segmentId);
 }

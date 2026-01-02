@@ -66,7 +66,7 @@ public class AudioWebSocketHandler extends BinaryWebSocketHandler {
         byte[] audioData = message.getPayload().array();
 
         // 1. 파일 시스템에 오디오 누적 저장 (Final 분석용)
-        fileStorageService.appendAudio(currentMeetingId, audioData);
+        fileStorageService.appendAudio(Long.valueOf(meetingId), audioData);
 
         // 2. 실시간 버퍼링 및 Whisper 요청 로직 (기존 유지)
         int chunkNumber = chunkCounters.getOrDefault(sessionId, 0) + 1;
