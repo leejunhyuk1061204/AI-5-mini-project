@@ -1,12 +1,16 @@
 package com.minipr.backend.meeting.service;
 
 import com.minipr.backend.common.NotFoundException;
+
 import com.minipr.backend.meeting.dto.*;
 import com.minipr.backend.meeting.entity.Meeting;
 import com.minipr.backend.meeting.entity.MeetingStatus;
 import com.minipr.backend.meeting.repository.MeetingRepository;
 import com.minipr.backend.member.entity.Member;
 import com.minipr.backend.member.service.MemberService;
+import com.minipr.backend.segment.entity.FinalSegment;
+import com.minipr.backend.segment.repository.FinalSegmentRepository;
+import com.minipr.backend.embedding.repository.FinalEmbeddingRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.client.MultipartBodyBuilder;
@@ -16,7 +20,9 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,14 +32,20 @@ public class MeetingService {
     private final MeetingRepository meetingRepository;
     private final MemberService memberService;
     private final WebClient webClient;
+    private final FinalSegmentRepository finalSegmentRepository;
+    private final FinalEmbeddingRepository finalEmbeddingRepository;
 
     public MeetingService(MeetingRepository meetingRepository,
             MemberService memberService,
             WebClient.Builder webClientBuilder,
+            FinalSegmentRepository finalSegmentRepository,
+            FinalEmbeddingRepository finalEmbeddingRepository,
             @Value("${python.ai.url:http://localhost:8000}") String pythonAiUrl) {
         this.meetingRepository = meetingRepository;
         this.memberService = memberService;
         this.webClient = webClientBuilder.baseUrl(pythonAiUrl).build();
+        this.finalSegmentRepository = finalSegmentRepository;
+        this.finalEmbeddingRepository = finalEmbeddingRepository;
     }
 
     public Meeting create(CreateMeetingRequest req) {
@@ -54,34 +66,101 @@ public class MeetingService {
     }
 
     /**
-     * 회의 종료: 화자 분리 및 정밀 전사 수행 후 full_text 업데이트
+     * 회의 종료: 화자 분리 및 정밀 전사 수행 후 full_text 업데이트 및 최종 테이블(Final) 구축
      */
     @Transactional
     public Meeting endMeeting(Integer meetingId, File audioFile) {
         Meeting meeting = get(meetingId);
-
-        // 1. 상태 변경 (분석 중)
         meeting.updateStatus(MeetingStatus.ANALYZING);
 
-        // 2. Python AI 서버 호출: 화자 분리 + 정밀 전사 (Whisper)
+        // 1. Python AI 서버 호출: 화자 분리 + 정밀 전사 (Whisper)
         DiarizationResponse aiResponse = callDiarizeAndTranscribe(audioFile);
 
-        // 3. 분석 결과 포맷팅 ([Speaker A]: 텍스트)
+        // 2. 분석 결과 포맷팅 및 full_text 업데이트
         String fullText = aiResponse.segments().stream()
                 .map(s -> "[" + s.speaker() + "]: " + s.text())
                 .collect(Collectors.joining("\n"));
-
-        // 4. Meeting 엔티티의 full_text 업데이트
         meeting.updateFullText(fullText);
 
-        // 5. 요약 API 호출 및 저장
+        // 3. 요약 생성 및 저장
         SummarizeResponse summaryResponse = callSummarizeApi(fullText);
         meeting.updateSummary(formatSummary(summaryResponse));
 
-        // 6. 상태 변경 (완료)
-        meeting.updateStatus(MeetingStatus.COMPLETED);
+        // 4. Final 테이블 구축 (화자별 세그먼트 분리 및 임베딩)
+        processFinalStorage(meeting, aiResponse.segments());
 
+        meeting.updateStatus(MeetingStatus.COMPLETED);
         return meetingRepository.save(meeting);
+    }
+
+    private void processFinalStorage(Meeting meeting, List<DiarizationSegment> segments) {
+        int seq = 0;
+        List<FinalSegment> finalSegments = new ArrayList<>();
+        List<String> textsToEmbed = new ArrayList<>();
+
+        for (DiarizationSegment s : segments) {
+            // 한 화자가 너무 길게 말할 경우 문장 단위로 쪼개기 (약 300자)
+            List<String> chunks = splitTextByLength(s.text(), 300);
+
+            for (String chunk : chunks) {
+                FinalSegment fs = new FinalSegment(
+                        meeting,
+                        ++seq,
+                        chunk,
+                        s.speaker(),
+                        (int) s.start());
+                finalSegments.add(finalSegmentRepository.save(fs));
+
+                // 임베딩 시 화자 정보를 포함하여 저장 (챗봇 검색 품질 향상)
+                textsToEmbed.add("[" + s.speaker() + "]: " + chunk);
+            }
+        }
+
+        // 일괄 임베딩 생성 (SBERT API)
+        if (!textsToEmbed.isEmpty()) {
+            List<List<Double>> embeddings = callSbertBatchEmbeddings(textsToEmbed);
+            for (int i = 0; i < finalSegments.size(); i++) {
+                finalEmbeddingRepository.saveEmbedding(
+                        finalSegments.get(i).getId(),
+                        embeddings.get(i).toString());
+            }
+        }
+    }
+
+    private List<String> splitTextByLength(String text, int maxLength) {
+        List<String> results = new ArrayList<>();
+        if (text == null || text.isEmpty())
+            return results;
+
+        // 마침표를 기준으로 1차 분리 시도
+        String[] sentences = text.split("(?<=\\.)\\s+");
+        StringBuilder currentChunk = new StringBuilder();
+
+        for (String sentence : sentences) {
+            if (currentChunk.length() + sentence.length() > maxLength && currentChunk.length() > 0) {
+                results.add(currentChunk.toString().trim());
+                currentChunk = new StringBuilder();
+            }
+            currentChunk.append(sentence).append(" ");
+        }
+
+        if (currentChunk.length() > 0) {
+            results.add(currentChunk.toString().trim());
+        }
+        return results;
+    }
+
+    private List<List<Double>> callSbertBatchEmbeddings(List<String> texts) {
+        Map<String, Object> body = Map.of("texts", texts);
+        Map<String, Object> response = webClient.post()
+                .uri("/api/embeddings")
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {
+                })
+                .block();
+
+        return (List<List<Double>>) response.get("embeddings");
     }
 
     private SummarizeResponse callSummarizeApi(String text) {
