@@ -3,6 +3,26 @@ import { Link, useLocation } from 'react-router-dom';
 
 const Header: React.FC = () => {
     const location = useLocation();
+    const [userName, setUserName] = React.useState<string | null>(localStorage.getItem('userName'));
+
+    React.useEffect(() => {
+        const handleLoginSuccess = () => {
+            setUserName(localStorage.getItem('userName'));
+        };
+
+        window.addEventListener('login-success', handleLoginSuccess);
+
+        // Also check on mount
+        setUserName(localStorage.getItem('userName'));
+
+        return () => window.removeEventListener('login-success', handleLoginSuccess);
+    }, []);
+
+    const handleLogout = () => {
+        localStorage.removeItem('userName');
+        setUserName(null);
+        window.location.href = '/'; // Reload to clear state perfectly
+    };
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-[#e7ebf3] bg-white/80 backdrop-blur-md">
@@ -40,14 +60,28 @@ const Header: React.FC = () => {
                 </div>
 
                 {/* Right: Login/Profile */}
-                <div className="flex items-center">
-                    <Link
-                        to="/login"
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-[#444746] hover:bg-[#f0f4f9] transition-colors"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">login</span>
-                        <span className="hidden sm:inline">로그인</span>
-                    </Link>
+                <div className="flex items-center gap-4">
+                    {userName ? (
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm font-semibold text-[#0d121b]">
+                                {userName}님
+                            </span>
+                            <button
+                                onClick={handleLogout}
+                                className="text-xs text-[#4c669a] hover:text-[#135bec] underline"
+                            >
+                                로그아웃
+                            </button>
+                        </div>
+                    ) : (
+                        <Link
+                            to="/login"
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-[#444746] hover:bg-[#f0f4f9] transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">login</span>
+                            <span className="hidden sm:inline">로그인</span>
+                        </Link>
+                    )}
                 </div>
             </div>
         </header>
