@@ -8,6 +8,7 @@ import com.minipr.backend.meeting.entity.MeetingStatus;
 import com.minipr.backend.meeting.repository.MeetingRepository;
 import com.minipr.backend.member.entity.Member;
 import com.minipr.backend.member.service.MemberService;
+import com.minipr.backend.segment.entity.EmbeddingStatus;
 import com.minipr.backend.segment.entity.FinalSegment;
 import com.minipr.backend.segment.repository.FinalSegmentRepository;
 import com.minipr.backend.embedding.repository.FinalEmbeddingRepository;
@@ -61,33 +62,62 @@ public class MeetingService {
     }
 
     @Transactional(readOnly = true)
+        public Meeting endMeeting(Integer meetingId, File audioFile) {
+        // 1. 상태를 ANALYZING으로 변경 (private 메서드 호출)
+        updateStatus(meetingId, MeetingStatus.ANALYZING);
+
+        try {
+            // 2. Python AI 서버 호출: 화자 분리 + 전사
+            DiarizationResponse aiResponse = callDiarizeAndTranscribe(audioFile);
+
+            // [에러 해결 부분] formatFullText 메서드 대신 여기서 직접 스트림으로 합칩니다.
+            String fullText = aiResponse.segments().stream()
+                    .map(s -> "[" + s.speaker() + "]: " + s.text())
+                    .collect(Collectors.joining("\n"));
+
+            // 3. 요약 API 호출
+            SummarizeResponse summaryResponse = callSummarizeApi(fullText);
+
+            // 4. DB 저장 로직 호출 (파라미터 3개 확인)
+            return saveAnalysisResult(meetingId, aiResponse, summaryResponse);
+            
+        } catch (Exception e) {
+            // 에러 발생 시 상태를 FAILED로 변경
+            updateStatus(meetingId, MeetingStatus.FAILED);
+            throw e;
+        }
+    }
+    
+
+    // 상태만 별도로 업데이트하여 DB에 즉시 반영하는 헬퍼 메서드
+    private void updateStatus(Integer meetingId, MeetingStatus status) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new NotFoundException("회의를 찾을 수 없습니다. id=" + meetingId));
+        meeting.updateStatus(status);
+        meetingRepository.save(meeting);
+    }
+
+
+    @Transactional(readOnly = true)
     public List<Meeting> listByMember(Integer memberId) {
         return meetingRepository.findByMember_MemberId(memberId);
     }
 
-    /**
-     * 회의 종료: 화자 분리 및 정밀 전사 수행 후 full_text 업데이트 및 최종 테이블(Final) 구축
-     */
     @Transactional
-    public Meeting endMeeting(Integer meetingId, File audioFile) {
+    public Meeting saveAnalysisResult(Integer meetingId, DiarizationResponse aiRes, SummarizeResponse sumRes) {
         Meeting meeting = get(meetingId);
-        meeting.updateStatus(MeetingStatus.ANALYZING);
-
-        // 1. Python AI 서버 호출: 화자 분리 + 정밀 전사 (Whisper)
-        DiarizationResponse aiResponse = callDiarizeAndTranscribe(audioFile);
-
-        // 2. 분석 결과 포맷팅 및 full_text 업데이트
-        String fullText = aiResponse.segments().stream()
+        
+        // 1. Full Text 업데이트
+        String fullText = aiRes.segments().stream()
                 .map(s -> "[" + s.speaker() + "]: " + s.text())
                 .collect(Collectors.joining("\n"));
         meeting.updateFullText(fullText);
 
-        // 3. 요약 생성 및 저장
-        SummarizeResponse summaryResponse = callSummarizeApi(fullText);
-        meeting.updateSummary(formatSummary(summaryResponse));
+        // 2. 요약 업데이트 (전달받은 sumRes 사용)
+        meeting.updateSummary(formatSummary(sumRes));
 
-        // 4. Final 테이블 구축 (화자별 세그먼트 분리 및 임베딩)
-        processFinalStorage(meeting, aiResponse.segments());
+        // 3. 최종 저장소 구축
+        processFinalStorage(meeting, aiRes.segments());
 
         meeting.updateStatus(MeetingStatus.COMPLETED);
         return meetingRepository.save(meeting);
@@ -120,9 +150,11 @@ public class MeetingService {
         if (!textsToEmbed.isEmpty()) {
             List<List<Double>> embeddings = callSbertBatchEmbeddings(textsToEmbed);
             for (int i = 0; i < finalSegments.size(); i++) {
-                finalEmbeddingRepository.saveEmbedding(
-                        finalSegments.get(i).getId(),
-                        embeddings.get(i).toString());
+                FinalSegment segment = finalSegments.get(i);
+                finalEmbeddingRepository.saveEmbedding(segment.getId(), embeddings.get(i).toString());
+                
+                // 이 부분을 추가하면 나중에 어떤 세그먼트가 임베딩 실패했는지 추적 가능합니다!
+                segment.updateEmbeddingStatus(EmbeddingStatus.COMPLETED); 
             }
         }
     }
@@ -208,6 +240,7 @@ public class MeetingService {
         builder.part("file", new FileSystemResource(audioFile));
 
         return webClient.post()
+                //Spring -> Python AI 연동
                 .uri("/api/v1/diarize_and_transcribe")
                 .body(BodyInserters.fromMultipartData(builder.build()))
                 .retrieve()

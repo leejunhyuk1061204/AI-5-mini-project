@@ -6,5 +6,6 @@ package com.minipr.backend.meeting.entity;
 public enum MeetingStatus {
     PROCEEDING, // 진행 중
     COMPLETED, // 완료됨
-    ANALYZING // 분석 중
+    ANALYZING, // 분석 중
+    FAILED //실패
 }
