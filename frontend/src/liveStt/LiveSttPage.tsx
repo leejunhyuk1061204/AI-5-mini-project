@@ -82,7 +82,9 @@ const LiveSttPage: React.FC = () => {
 
     // meetingId를 URL 파라미터에서 읽음 (예: /live?meetingId=1)
     const meetingIdParam = new URLSearchParams(window.location.search).get('meetingId');
-    const MEETING_ID = meetingIdParam ? Number(meetingIdParam) : NaN;
+    const [currentMeetingId, setCurrentMeetingId] = useState<number | null>(
+        meetingIdParam ? Number(meetingIdParam) : null
+    );
 
     // History State
     const [history, setHistory] = useState<HistoryItem[]>(() => {
@@ -188,10 +190,10 @@ const LiveSttPage: React.FC = () => {
     }, []);
 
     // Connect WebSocket for audio streaming
-    const connectWebSocket = () => {
+    const connectWebSocket = (meetingId: number) => {
         return new Promise<WebSocket>((resolve, reject) => {
-            const wsUrl = `${JAVA_WS_URL}/ws/audio?meetingId=${MEETING_ID}`;
-            console.log("WS 연결 시도:", wsUrl, "MEETING_ID:", MEETING_ID);
+            const wsUrl = `${JAVA_WS_URL}/ws/audio?meetingId=${meetingId}`;
+            console.log("WS 연결 시도:", wsUrl, "meetingId:", meetingId);
 
             const ws = new WebSocket(wsUrl);
             ws.binaryType = 'arraybuffer';
@@ -223,17 +225,12 @@ const LiveSttPage: React.FC = () => {
     };
 
     // Start MediaRecorder
-    const startMediaRecorder = async () => {
+    const startMediaRecorder = async (meetingId: number) => {
         try {
-            if (!Number.isFinite(MEETING_ID)) {
-                alert("meetingId가 없습니다. /live?meetingId=1 형태로 접속해주세요.");
-                return;
-            }
-
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaStreamRef.current = stream;
 
-            await connectWebSocket();
+            await connectWebSocket(meetingId);
 
             if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
                 console.warn("WS 아직 OPEN 아님. 녹음을 시작할 수 없습니다.");
@@ -269,6 +266,19 @@ const LiveSttPage: React.FC = () => {
 
                 mediaRecorderRef.current = null;
                 console.log('MediaRecorder 완전히 정지됨');
+
+                // 녹음 종료 후 다운로드 확인
+                setTimeout(() => {
+                    if (window.confirm('녹음한 후에 파일 다운로드 하시겠습니까?')) {
+                        const downloadUrl = `/api/files/download/${meetingId}`;
+                        const link = document.createElement('a');
+                        link.href = downloadUrl;
+                        link.download = `meeting_${meetingId}.webm`; // Optional, backend header usually handles this
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    }
+                }, 100);
             };
 
             mediaRecorder.start(1000);
@@ -288,13 +298,64 @@ const LiveSttPage: React.FC = () => {
         }
     };
 
+    const createMeeting = async (): Promise<number | null> => {
+        const memberIdStr = localStorage.getItem('memberId');
+        if (!memberIdStr) {
+            alert('로그인이 필요합니다.');
+            // 여기서 로그인 페이지로 이동하거나 할 수 있음
+            return null;
+        }
+
+        try {
+            const memberId = parseInt(memberIdStr, 10);
+            const title = `새 회의 (${new Date().toLocaleString()})`;
+
+            const res = await fetch('/api/meetings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ memberId, title })
+            });
+
+            if (!res.ok) {
+                throw new Error('회의 생성 실패');
+            }
+
+            const data = await res.json(); // ApiResponse
+            // data.data is MeetingResponse
+            const newMeetingId = data.data.meetingId;
+            console.log('새 회의 생성됨:', newMeetingId);
+            return newMeetingId;
+
+        } catch (e) {
+            console.error('회의 생성 중 오류:', e);
+            alert('회의를 생성할 수 없습니다.');
+            return null;
+        }
+    };
+
     const toggleListening = async () => {
         if (isListening) {
             recognitionRef.current?.stop();
             stopMediaRecorder();
         } else {
-            recognitionRef.current?.start();
-            await startMediaRecorder();
+            let targetMeetingId = currentMeetingId;
+
+            if (!targetMeetingId) {
+                const newId = await createMeeting();
+                if (!newId) return; // 생성 실패 or 로그인 안됨
+                targetMeetingId = newId;
+                setCurrentMeetingId(newId);
+
+                // URL 업데이트 (선택사항, 새로고침 시 유지용)
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.set('meetingId', String(newId));
+                window.history.pushState({}, '', newUrl.toString());
+            }
+
+            if (targetMeetingId) {
+                recognitionRef.current?.start();
+                await startMediaRecorder(targetMeetingId);
+            }
         }
     };
 
