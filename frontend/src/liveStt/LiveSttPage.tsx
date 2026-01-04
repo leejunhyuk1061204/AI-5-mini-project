@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from '../sidebar/Sidebar';
 import type { HistoryItem } from '../types';
+import Chatbot from '../chatbot/Chatbot';
 
 // Type definitions for Web Speech API
 interface SpeechRecognitionEvent extends Event {
@@ -85,6 +86,10 @@ const LiveSttPage: React.FC = () => {
     const [currentMeetingId, setCurrentMeetingId] = useState<number | null>(
         meetingIdParam ? Number(meetingIdParam) : null
     );
+    // 챗봇용 meetingId (녹음 종료 후에도 유지)
+    const [lastMeetingId, setLastMeetingId] = useState<number | null>(
+        meetingIdParam ? Number(meetingIdParam) : null
+    );
 
     // History State
     const [history, setHistory] = useState<HistoryItem[]>(() => {
@@ -101,6 +106,7 @@ const LiveSttPage: React.FC = () => {
 
     const [summary, setSummary] = useState<string | null>(tempData?.summary || null);
     const [isSummarizing, setIsSummarizing] = useState(false);
+    const [isChatOpen, setIsChatOpen] = useState(false);
 
     // Auto-save temp data
     useEffect(() => {
@@ -267,13 +273,19 @@ const LiveSttPage: React.FC = () => {
                 mediaRecorderRef.current = null;
                 console.log('MediaRecorder 완전히 정지됨');
 
+                // 녹음 정지 시 미팅 ID 초기화 (다음 녹음 때 새 미팅 생성을 위해)
+                setCurrentMeetingId(null);
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.delete('meetingId');
+                window.history.pushState({}, '', newUrl.toString());
+
                 // 녹음 종료 후 다운로드 확인
                 setTimeout(() => {
                     if (window.confirm('녹음한 후에 파일 다운로드 하시겠습니까?')) {
-                        const downloadUrl = `/api/files/download/${meetingId}`;
+                        const downloadUrl = `/api/files/download/${meetingId}`; // 여기서 meetingId는 클로저로 전달된 값
                         const link = document.createElement('a');
                         link.href = downloadUrl;
-                        link.download = `meeting_${meetingId}.webm`; // Optional, backend header usually handles this
+                        link.download = `meeting_${meetingId}.webm`;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
@@ -317,18 +329,19 @@ const LiveSttPage: React.FC = () => {
             });
 
             if (!res.ok) {
-                throw new Error('회의 생성 실패');
+                const errorData = await res.json().catch(() => ({}));
+                console.error('회의 생성 실패 response:', res.status, errorData);
+                throw new Error(`회의 생성 실패 (Status: ${res.status})`);
             }
 
-            const data = await res.json(); // ApiResponse
-            // data.data is MeetingResponse
+            const data = await res.json();
             const newMeetingId = data.data.meetingId;
             console.log('새 회의 생성됨:', newMeetingId);
             return newMeetingId;
 
         } catch (e) {
-            console.error('회의 생성 중 오류:', e);
-            alert('회의를 생성할 수 없습니다.');
+            console.error('회의 생성 중 상세 오류:', e);
+            alert(`회의를 생성할 수 없습니다: ${e instanceof Error ? e.message : '알 수 없는 오류'}`);
             return null;
         }
     };
@@ -340,13 +353,14 @@ const LiveSttPage: React.FC = () => {
         } else {
             let targetMeetingId = currentMeetingId;
 
-            if (!targetMeetingId) {
+            if (true) { // 무조건 새 미팅 생성 (기존 targetMeetingId 체크 로직 제거)
                 const newId = await createMeeting();
-                if (!newId) return; // 생성 실패 or 로그인 안됨
+                if (!newId) return;
                 targetMeetingId = newId;
                 setCurrentMeetingId(newId);
+                setLastMeetingId(newId); // 챗봇용 meetingId 업데이트
 
-                // URL 업데이트 (선택사항, 새로고침 시 유지용)
+                // URL 업데이트 (새로고침 시 유지용)
                 const newUrl = new URL(window.location.href);
                 newUrl.searchParams.set('meetingId', String(newId));
                 window.history.pushState({}, '', newUrl.toString());
@@ -554,6 +568,27 @@ const LiveSttPage: React.FC = () => {
                 </div>
 
             </main>
+
+            {/* Chatbot Integration */}
+            <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-4">
+                {!isChatOpen && (
+                    <button
+                        onClick={() => setIsChatOpen(true)}
+                        className="flex items-center justify-center w-14 h-14 rounded-full bg-[#135bec] text-white shadow-lg hover:bg-blue-700 transition-all hover:scale-110 active:scale-95 group"
+                        title="AI 어시스턴트 열기"
+                    >
+                        <span className="material-symbols-outlined text-[28px]">smart_toy</span>
+                        {/* Tooltip or Label could go here */}
+                    </button>
+                )}
+
+                <Chatbot
+                    isOpen={isChatOpen}
+                    onClose={() => setIsChatOpen(false)}
+                    meetingId={lastMeetingId || 0}
+                />
+            </div>
+
         </div>
     );
 };

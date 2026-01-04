@@ -7,14 +7,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
 
-/**
- * 슬라이딩 윈도우 조각들 - 텍스트 조각과 화자 정보를 관리
- */
 @Entity
 @Table(name = "segments")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class MeetingSegment {
+public class RealtimeSegment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,53 +23,32 @@ public class MeetingSegment {
     private Meeting meeting;
 
     @Column(name = "segment_seq", nullable = false)
-    private Integer segmentSeq; // 대화 순서
+    private Integer segmentSeq;
 
     @Lob
     @Column(name = "chunk_text", nullable = false, columnDefinition = "TEXT")
-    private String chunkText; // 30% 중첩된 텍스트 조각
+    private String chunkText;
 
     @Column(name = "start_time")
-    private Integer startTime; // 회의 시작 후 N초 (초 단위)
+    private Integer startTime;
 
     @Column(name = "speaker_label", length = 50)
-    private String speakerLabel; // Diarization 결과 (ex: Speaker A)
+    private String speakerLabel;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "embedding_status", nullable = false)
     @ColumnDefault("'PENDING'")
-    private EmbeddingStatus embeddingStatus = EmbeddingStatus.PENDING; // 비동기 상태관리
+    private EmbeddingStatus embeddingStatus = EmbeddingStatus.PENDING;
 
-    public MeetingSegment(Meeting meeting, Integer segmentSeq, String chunkText) {
-        this.meeting = meeting;
-        this.segmentSeq = segmentSeq;
-        this.chunkText = chunkText;
-        this.embeddingStatus = EmbeddingStatus.PENDING;
-    }
-
-    public MeetingSegment(Meeting meeting, Integer segmentSeq, String chunkText,
-            Integer startTime, String speakerLabel) {
+    public RealtimeSegment(Meeting meeting, Integer segmentSeq, String chunkText, Integer startTime) {
         this.meeting = meeting;
         this.segmentSeq = segmentSeq;
         this.chunkText = chunkText;
         this.startTime = startTime;
-        this.speakerLabel = speakerLabel;
         this.embeddingStatus = EmbeddingStatus.PENDING;
     }
 
     public void updateEmbeddingStatus(EmbeddingStatus status) {
         this.embeddingStatus = status;
-    }
-
-    /**
-     * 초 단위 시간을 HH:MM:SS 형식으로 변환
-     */
-    public String getFormattedStartTime() {
-        if (startTime == null)
-            return null;
-        int hours = startTime / 3600;
-        int minutes = (startTime % 3600) / 60;
-        int seconds = startTime % 60;
-        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
 }

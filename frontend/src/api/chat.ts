@@ -4,6 +4,7 @@ export interface HistoryMessage {
 }
 
 export interface ChatRequest {
+    meetingId: number;
     message: string;
     session_id?: string;
     history?: HistoryMessage[];
@@ -16,7 +17,7 @@ export interface ChatResponse {
     took_ms: number;
 }
 
-const API_BASE_URL = 'http://localhost:8001/api';
+const API_BASE_URL = 'http://localhost:8080/api';
 
 export const sendMessage = async (request: ChatRequest): Promise<ChatResponse> => {
     try {

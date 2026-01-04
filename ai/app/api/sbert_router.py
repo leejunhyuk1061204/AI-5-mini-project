@@ -47,7 +47,7 @@ def load_sbert_model():
         model_name = "jhgan/ko-sroberta-multitask"
         print(f"✅ {model_name} 모델 로드 중...", flush=True)
         _model = SentenceTransformer(model_name)
-        print(f"✅ {model_name} 모델 로드 완료!", flush=True)
+        print(f"✅ {model_name} 모델 로드 완료! (device: {_model.device})", flush=True)
     return _model
 
 

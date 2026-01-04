@@ -38,10 +38,11 @@ public class WhisperApiClient {
         System.out.println("📤 [Java→Python] Whisper API 요청 전송");
         System.out.println("   📁 파일명: " + filename);
         System.out.println("   📊 데이터 크기: " + audioData.length + " bytes");
-        System.out.println("   🔗 URL: " + "/api/transcribe");
+        MultipartBodyBuilder builder = new MultipartBodyBuilder();
+        String targetUrl = "/api/transcribe";
+        log.info("📤 [Whisper] API 요청 전송 시작: {} (크기: {} bytes)", targetUrl, audioData.length);
         long startTime = System.currentTimeMillis();
 
-        MultipartBodyBuilder builder = new MultipartBodyBuilder();
         builder.part("file", new ByteArrayResource(audioData) {
             @Override
             public String getFilename() {

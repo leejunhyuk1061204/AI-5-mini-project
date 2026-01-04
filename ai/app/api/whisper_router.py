@@ -43,9 +43,14 @@ class WhisperModelWrapper:
         WhisperModelWrapper._initialized = True
         
         model_size = "small"
-        print(f"[WhisperModel] 모델 로딩 중: {model_size}")
-        self.model = WhisperModel(model_size, device="cpu", compute_type="int8")
-        print("[WhisperModel] 모델 로딩 완료!")
+        print(f"[WhisperModel] 모델 로딩 중: {model_size} (device: cuda)")
+        try:
+            self.model = WhisperModel(model_size, device="cuda", compute_type="float16")
+            print("[WhisperModel] 모델 로딩 완료! (GPU Mode)")
+        except Exception as e:
+            print(f"[WhisperModel] GPU 로딩 실패, CPU로 전환합니다. Error: {e}")
+            self.model = WhisperModel(model_size, device="cpu", compute_type="int8")
+            print("[WhisperModel] 모델 로딩 완료! (CPU Mode)")
 
     def transcribe(self, audio_path: str) -> tuple:
         """음성 파일을 텍스트로 변환"""
@@ -55,6 +60,10 @@ class WhisperModelWrapper:
 
 
 _whisper_model = None
+
+def load_model():
+    """모델 명시적 로드"""
+    get_whisper_model()
 
 def get_whisper_model() -> WhisperModelWrapper:
     """싱글톤 모델 인스턴스 반환"""

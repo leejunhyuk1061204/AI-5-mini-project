@@ -15,8 +15,8 @@ public interface FinalEmbeddingRepository extends JpaRepository<FinalEmbedding, 
     @Modifying
     @Transactional
     @Query(value = "INSERT INTO final_embeddings (final_segment_id, embedding) " +
-            "VALUES (:segmentId, vector_from_text(:vectorStr)) " +
-            "ON DUPLICATE KEY UPDATE embedding = vector_from_text(:vectorStr)", nativeQuery = true)
+            "VALUES (:segmentId, STRING_TO_VECTOR(:vectorStr)) " +
+            "ON DUPLICATE KEY UPDATE embedding = STRING_TO_VECTOR(:vectorStr)", nativeQuery = true)
     void saveEmbedding(@Param("segmentId") Long segmentId, @Param("vectorStr") String vectorStr);
 
     Optional<FinalEmbedding> findByFinalSegment_Id(Long segmentId);

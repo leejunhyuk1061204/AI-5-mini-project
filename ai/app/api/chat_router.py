@@ -58,7 +58,7 @@ class ChatModel:
         
         model_name = "Qwen/Qwen3-0.6B"
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"[ChatModel] 모델 로딩 중: {model_name} (device: {self.device})")
+        print(f"[ChatModel] Loading model: {model_name} (device: {self.device})")
         
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
@@ -69,7 +69,7 @@ class ChatModel:
         if self.device == "cpu":
             self.model = self.model.to(self.device)
         
-        print("[ChatModel] 모델 로딩 완료!")
+        print("[ChatModel] Model loading complete!")
 
     def generate(self, messages: List[Dict[str, str]]) -> str:
         """메시지 리스트를 받아 응답 생성"""
@@ -131,6 +131,7 @@ async def chat(req: ChatRequest):
     
     # 세션 ID 생성 또는 사용
     session_id = req.session_id or str(uuid.uuid4())[:8]
+    print(f"[Chat] Request received - session_id: {session_id}")
     
     try:
         model = get_chat_model()
@@ -140,14 +141,20 @@ async def chat(req: ChatRequest):
         
         # 1. 시스템 프롬프트
         system_prompt = (
-            "당신은 'AI 회의록' 서비스의 지능형 어시스턴트입니다. "
-            "사용자의 회의 내용을 분석하여 요약, 할 일(Action Item) 추출, 일정 정리 등을 돕습니다. "
-            "또한 서비스 이용 방법에 대한 질문에도 친절하게 답변합니다. "
-            "모든 답변은 한국어로 명확하고 전문적인 어조로 작성해주세요."
+            "당신은 'AI 회의록' 서비스의 지능형 어시스턴트입니다.\n"
+            "사용자의 제공된 [참조 컨텍스트]를 바탕으로 질문에 답변해야 합니다.\n"
+            "만약 질문에 대한 답이 [참조 컨텍스트]에 없다면, 외부 지식을 사용하기보다 "
+            "'제공된 회의 내용에서는 해당 정보를 찾을 수 없습니다'라고 정직하게 답변해 주세요.\n"
+            "회의 내용을 바탕으로 요약, 할 일(Action Item) 추출, 일정 정리 등을 명확히 수행하세요.\n"
+            "모든 답변은 한국어로 명확하고 전문적인 어조로 작성해야 합니다."
         )
         
         # 2. 컨텍스트가 있으면 시스템 프롬프트에 추가
-        if req.context:
+        if req.context and "retrieved_segments" in req.context:
+            segments = req.context["retrieved_segments"]
+            context_str = "\n".join([f"- {s}" for s in segments])
+            system_prompt += f"\n\n[참조 컨텍스트 (회의 내용)]\n{context_str}"
+        elif req.context:
             context_str = "\n".join(f"- {k}: {v}" for k, v in req.context.items())
             system_prompt += f"\n\n[참조 컨텍스트]\n{context_str}"
         
@@ -158,13 +165,15 @@ async def chat(req: ChatRequest):
             for h in req.history:
                 messages.append({"role": h.role, "content": h.content})
         
-        # 4. 현재 사용자 메시지 (한국어 강제)
-        messages.append({"role": "user", "content": f"{req.message}\n(답변은 무조건 한국어로 해주세요)"})
+        # 4. 현재 사용자 메시지
+        messages.append({"role": "user", "content": req.message})
         
         # 응답 생성
+        print(f"[Chat] Generating reply...")
         reply = model.generate(messages)
         
         took_ms = int((time.time() - start_time) * 1000)
+        print(f"[Chat] Reply complete - took: {took_ms}ms")
         
         return ChatResponse(
             session_id=session_id,
