@@ -13,10 +13,13 @@ conda activate ai5-backend
 # 4. 패키지 설치
 pip install -r requirements.txt
 
-# 5. 서버 실행
+# 5.pymysql 라이브러리 설치
+pip install pymysql
+
+# 6. 서버 실행
 # 포트
 
-# 6. API 테스트
+# 7. API 테스트
 http://localhost:8001/docs
 
 

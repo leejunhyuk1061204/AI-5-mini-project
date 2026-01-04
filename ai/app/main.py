@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.chat_router import router as chat_router
 from app.api.chat_router import load_model
-from app.api.whisper_router import router as whisper_router
+# from app.api.whisper_router import router as whisper_router
 from app.api.summarize import router as summarize_router
 from app.api.sbert_router import router as sbert_router
 from app.api.embedding_router import router as embedding_v2_router
@@ -52,7 +52,7 @@ def health_check():
     return {"status": "ok", "message": "Backend is running"}
 
 app.include_router(chat_router)  # prefix="/api" already in router
-app.include_router(whisper_router)  # prefix="/api" already in router
+# app.include_router(whisper_router)  # prefix="/api" already in router
 app.include_router(summarize_router)  # prefix="/api" already in router
 app.include_router(sbert_router)  # prefix="/api" already in router
 app.include_router(embedding_v2_router) # prefix="/api/v2" already in router
