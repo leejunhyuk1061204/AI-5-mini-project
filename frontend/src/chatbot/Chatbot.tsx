@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { sendMessage, type ChatResponse } from '../api/chat';
+import { sendMessage } from '../api/chat';
 
 interface ChatbotProps {
     isOpen: boolean;
     onClose: () => void;
+    meetingId: number;
 }
 
 interface Message {
@@ -13,10 +14,10 @@ interface Message {
     isError?: boolean;
 }
 
-const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
+const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, meetingId }) => {
     const [messages, setMessages] = useState<Message[]>([
         { id: 1, text: "안녕하세요! 무엇을 도와드릴까요?", isUser: false },
-        { id: 2, text: "회의록 요약이나 검색을 도와드릴 수 있습니다.", isUser: false }
+        { id: 2, text: "현재 회의 내용을 바탕으로 답변해 드릴 수 있습니다.", isUser: false }
     ]);
     const [inputValue, setInputValue] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -48,7 +49,8 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
                 content: msg.text
             }));
 
-            const response: ChatResponse = await sendMessage({
+            const response = await sendMessage({
+                meetingId: meetingId,
                 message: userMessage,
                 session_id: sessionId,
                 history: history

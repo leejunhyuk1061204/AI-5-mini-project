@@ -25,10 +25,11 @@ public class FinalEmbedding {
     private FinalSegment finalSegment;
 
     @Column(name = "embedding", nullable = false, columnDefinition = "VECTOR(768)")
-    private byte[] vectorData;
+    @org.hibernate.annotations.ColumnTransformer(read = "VECTOR_TO_STRING(embedding)", write = "STRING_TO_VECTOR(?)")
+    private String embedding;
 
-    public FinalEmbedding(FinalSegment finalSegment, byte[] vectorData) {
+    public FinalEmbedding(FinalSegment finalSegment, String embedding) {
         this.finalSegment = finalSegment;
-        this.vectorData = vectorData;
+        this.embedding = embedding;
     }
 }

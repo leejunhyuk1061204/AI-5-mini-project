@@ -1,6 +1,6 @@
 package com.minipr.backend.common.event;
 
-import com.minipr.backend.segment.entity.MeetingSegment;
+import com.minipr.backend.segment.entity.RealtimeSegment;
 import lombok.Getter;
 
 /**
@@ -9,9 +9,9 @@ import lombok.Getter;
  */
 @Getter
 public class MeetingSegmentSavedEvent {
-    private final MeetingSegment segment;
+    private final RealtimeSegment segment;
 
-    public MeetingSegmentSavedEvent(MeetingSegment segment) {
+    public MeetingSegmentSavedEvent(RealtimeSegment segment) {
         this.segment = segment;
     }
 }

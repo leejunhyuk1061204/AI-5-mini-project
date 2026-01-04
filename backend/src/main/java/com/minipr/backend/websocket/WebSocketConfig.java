@@ -1,8 +1,10 @@
 package com.minipr.backend.websocket;
 
-import com.minipr.backend.segment.service.MeetingSegmentBufferService;
+import com.minipr.backend.meeting.repository.MeetingRepository;
+import com.minipr.backend.segment.repository.RealtimeSegmentRepository;
 import com.minipr.backend.service.FileStorageService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
@@ -22,16 +24,22 @@ public class WebSocketConfig implements WebSocketConfigurer {
     private String allowedOrigins;
 
     private final WhisperApiClient whisperApiClient;
-    private final MeetingSegmentBufferService meetingSegmentBufferService;
+    private final RealtimeSegmentRepository realtimeSegmentRepository;
+    private final MeetingRepository meetingRepository;
     private final FileStorageService fileStorageService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public WebSocketConfig(
             WhisperApiClient whisperApiClient,
-            MeetingSegmentBufferService meetingSegmentBufferService,
-            FileStorageService fileStorageService) {
+            RealtimeSegmentRepository realtimeSegmentRepository,
+            MeetingRepository meetingRepository,
+            FileStorageService fileStorageService,
+            ApplicationEventPublisher eventPublisher) {
         this.whisperApiClient = whisperApiClient;
-        this.meetingSegmentBufferService = meetingSegmentBufferService;
+        this.realtimeSegmentRepository = realtimeSegmentRepository;
+        this.meetingRepository = meetingRepository;
         this.fileStorageService = fileStorageService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -42,7 +50,12 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Bean
     public AudioWebSocketHandler audioWebSocketHandler() {
-        return new AudioWebSocketHandler(whisperApiClient, meetingSegmentBufferService, fileStorageService);
+        return new AudioWebSocketHandler(
+                whisperApiClient,
+                realtimeSegmentRepository,
+                meetingRepository,
+                fileStorageService,
+                eventPublisher);
     }
 
     /**

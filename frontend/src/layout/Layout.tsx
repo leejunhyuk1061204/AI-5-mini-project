@@ -9,6 +9,7 @@ const Layout: React.FC = () => {
     const [isChatbotOpen, setIsChatbotOpen] = React.useState(window.innerWidth >= 1024);
     const location = useLocation();
     const isLandingPage = location.pathname === '/';
+    const isLivePage = location.pathname === '/live';
 
     // Automatically handle visibility on window resize
     React.useEffect(() => {
@@ -35,14 +36,18 @@ const Layout: React.FC = () => {
                 <div className="flex-1 flex flex-col relative min-w-0 overflow-hidden h-full">
                     <Outlet />
                 </div>
-                {!isLandingPage && (
-                    <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
+                {!isLandingPage && !isLivePage && (
+                    <Chatbot
+                        isOpen={isChatbotOpen}
+                        onClose={() => setIsChatbotOpen(false)}
+                        meetingId={0} // Global chatbot context (default)
+                    />
                 )}
             </main>
             <Footer
                 onToggleChatbot={() => setIsChatbotOpen(!isChatbotOpen)}
                 isChatbotOpen={isChatbotOpen}
-                showChatbotToggle={!isLandingPage}
+                showChatbotToggle={!isLandingPage && !isLivePage}
             />
         </div>
     );
