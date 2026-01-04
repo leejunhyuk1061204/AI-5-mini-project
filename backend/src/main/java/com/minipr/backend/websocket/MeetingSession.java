@@ -1,7 +1,6 @@
 package com.minipr.backend.websocket;
 
 import lombok.Getter;
-import java.time.Instant;
 
 @Getter
 public class MeetingSession {
@@ -14,12 +13,82 @@ public class MeetingSession {
         this.startTimeMillis = System.currentTimeMillis();
     }
 
+    private String lastProcessedFullText = ""; // Whisper가 반환한 전체 누적 텍스트의 마지막 상태
+
     public void addText(String text) {
         if (text == null || text.isBlank())
             return;
 
         buffer.append(text).append(" ");
         lastActiveTime = System.currentTimeMillis();
+    }
+
+    /**
+     * Whisper로부터 받은 누적 전체 텍스트를 기반으로 버퍼를 업데이트합니다.
+     * 이미 세그먼트화되어 나간 텍스트와 겹치는 부분을 지능적으로 식별하여 새 텍스트만 유지합니다.
+     */
+    public void updateWithCumulativeText(String fullText) {
+        if (fullText == null || fullText.isBlank())
+            return;
+
+        // 1. 단순화된 전략: fullText에서 이전에 처리했던 부분을 찾아 그 이후만 취함
+        // (Whisper는 문맥에 따라 이전 텍스트를 조금씩 수정할 수 있으므로 완벽한 매칭이 아닐 수 있음)
+
+        String newPart = fullText;
+        if (!lastProcessedFullText.isEmpty() && fullText.startsWith(lastProcessedFullText)) {
+            newPart = fullText.substring(lastProcessedFullText.length());
+        } else if (!lastProcessedFullText.isEmpty()) {
+            // 접두어 매칭이 안 될 경우 (Whisper가 이전 문장을 수정한 경우),
+            // 가장 긴 공통 접두어를 찾거나 하는 복잡한 로직 대신
+            // 현재 버퍼의 끝부분과 매칭되는 지점을 찾을 수도 있음.
+            // 일단은 단순화를 위해 fullText를 그대로 사용하되 addText가 아닌 '덮어쓰기' 느낌으로 처리
+            newPart = findNewPart(lastProcessedFullText, fullText);
+        }
+
+        if (!newPart.isBlank()) {
+            String filtered = applyFilters(newPart.trim());
+            if (!filtered.isBlank()) {
+                addText(filtered);
+            }
+            lastProcessedFullText = fullText;
+        }
+    }
+
+    private String applyFilters(String text) {
+        String filtered = text;
+
+        // 1. 기술 용어 오인식 교정
+        filtered = filtered.replace("박백업", "백엔드")
+                .replace("빽엔드", "백엔드")
+                .replace("데이터 베이스", "데이터베이스")
+                .replace("자바 스크립트", "자바스크립트");
+
+        // 2. Whisper 반복 문구 제거
+        if (filtered.length() > 10) {
+            String mid = filtered.substring(0, filtered.length() / 2);
+            if (filtered.endsWith(mid + mid)) {
+                return mid;
+            }
+        }
+
+        // 3. 환각 방지
+        if (filtered.matches("^[\\.\\?\\!\\s]+$")) {
+            return "";
+        }
+
+        return filtered;
+    }
+
+    private String findNewPart(String oldText, String newText) {
+        // 간단한 겹침 제거 알고리즘 (문장 끝부분 매칭)
+        int minLen = Math.min(oldText.length(), newText.length());
+        for (int i = Math.min(minLen, 50); i > 0; i--) { // 최대 50자 정도 겹침 확인
+            String tail = oldText.substring(oldText.length() - i);
+            if (newText.startsWith(tail)) {
+                return newText.substring(i);
+            }
+        }
+        return newText;
     }
 
     public boolean shouldSplit(boolean isSilenceDetected) {
@@ -87,14 +156,10 @@ public class MeetingSession {
         int overlapStartIndex = originalLength - overlapLength;
 
         // Adjust overlap start to nearest space to avoid cutting words
-        // Use lastIndexOf to find space BEFORE the overlap start (so we don't cut a
-        // word)
         int adjustedOverlapStart = fullText.lastIndexOf(' ', overlapStartIndex);
         if (adjustedOverlapStart == -1 || adjustedOverlapStart == 0) {
-            // fallback if no space found before overlap start
             adjustedOverlapStart = overlapStartIndex;
         } else {
-            // Move past the space itself
             adjustedOverlapStart = adjustedOverlapStart + 1;
         }
 

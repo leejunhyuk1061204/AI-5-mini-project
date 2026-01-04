@@ -29,9 +29,11 @@ public class AudioWebSocketHandler extends BinaryWebSocketHandler {
     private final RealtimeSegmentRepository realtimeSegmentRepository;
     private final MeetingRepository meetingRepository;
     private final FileStorageService fileStorageService;
+    private final com.minipr.backend.meeting.service.MeetingService meetingService; // Injected
     private final ApplicationEventPublisher eventPublisher;
 
-    private static final int BUFFER_SIZE = 5; // 5초 청크 (정확도 향상)
+    private static final int BUFFER_SIZE = 5; // 5초마다 API 호출
+    private static final int MAX_RT_BUFFER_SIZE = 15; // 실시간 인식용 최대 버퍼 (15초)
 
     private final ConcurrentHashMap<String, byte[]> sessionHeaders = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, List<byte[]>> sessionBuffers = new ConcurrentHashMap<>();
@@ -42,22 +44,14 @@ public class AudioWebSocketHandler extends BinaryWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         String sessionId = session.getId();
-        log.info("📡 [WebSocket] 연결 시도됨: sessionId={}, URI={}", sessionId, session.getUri());
+        // log.info("📡 [WebSocket] 연결 시도됨: sessionId={}, URI={}", sessionId,
+        // session.getUri()); // Too verbose
 
         Integer meetingId = extractMeetingId(session);
         if (meetingId == null) {
-            log.error("❌ [WebSocket] meetingId 추출 실패! sessionId={}, URI={}", sessionId, session.getUri());
+            log.error("❌ [WebSocket] meetingId 추출 실패! sessionId={}", sessionId);
             session.close(CloseStatus.BAD_DATA);
             return;
-        }
-
-        // 미팅 존재 여부 확인 (간접적)
-        try {
-            meetingRepository.findById(meetingId).ifPresentOrElse(
-                    m -> log.info("✅ [WebSocket] 미팅 확인됨: meetingId={}, title={}", meetingId, m.getTitle()),
-                    () -> log.warn("⚠️ [WebSocket] DB에 미팅이 존재하지 않음! meetingId={}", meetingId));
-        } catch (Exception e) {
-            log.error("❌ [WebSocket] 미팅 조회 중 오류: {}", e.getMessage());
         }
 
         sessionMeetingIds.put(sessionId, meetingId);
@@ -70,67 +64,82 @@ public class AudioWebSocketHandler extends BinaryWebSocketHandler {
 
     @Override
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) throws Exception {
-        String sessionId = session.getId();
-        Integer meetingId = sessionMeetingIds.get(sessionId);
-        if (meetingId == null) {
-            session.close(CloseStatus.BAD_DATA);
-            return;
-        }
-
-        byte[] audioData = message.getPayload().array();
-        log.debug("📥 [WebSocket] 데이터 수신: sessionId={}, size={} bytes", sessionId, audioData.length);
-
-        // 1. File Storage for Final Analysis
         try {
-            fileStorageService.appendAudio(Long.valueOf(meetingId), audioData);
-        } catch (Exception e) {
-            log.error("❌ [WebSocket] 파일 저장 실패: {}", e.getMessage());
-        }
-
-        // 2. Realtime Processing
-        int chunkNumber = chunkCounters.getOrDefault(sessionId, 0) + 1;
-        chunkCounters.put(sessionId, chunkNumber);
-
-        if (chunkNumber == 1) {
-            sessionHeaders.put(sessionId, audioData);
-            return;
-        }
-
-        List<byte[]> buffer = sessionBuffers.computeIfAbsent(sessionId, k -> new ArrayList<>());
-        buffer.add(audioData);
-
-        if (buffer.size() >= BUFFER_SIZE) {
-            byte[] header = sessionHeaders.get(sessionId);
-            if (header == null)
+            String sessionId = session.getId();
+            Integer meetingId = sessionMeetingIds.get(sessionId);
+            if (meetingId == null) {
+                session.close(CloseStatus.BAD_DATA);
                 return;
+            }
 
-            byte[] completeAudio = mergeHeaderAndChunks(header, buffer);
-            buffer.clear();
+            byte[] audioData = message.getPayload().array();
 
-            whisperApiClient.transcribe(completeAudio)
-                    .subscribe(
-                            response -> {
-                                log.info("Whisper Result: {}", response.getText());
-                                processTranscription(sessionId, meetingId, response.getText());
-                            },
-                            error -> log.error("Whisper Error: {}", error.getMessage()));
+            // 2. Realtime Processing - 청크 번호 먼저 계산
+            int chunkNumber = chunkCounters.getOrDefault(sessionId, 0) + 1;
+            chunkCounters.put(sessionId, chunkNumber);
+
+            // 1. File Storage for Final Analysis (모든 청크를 저장 - 헤더 포함)
+            try {
+                fileStorageService.appendAudio(Long.valueOf(meetingId), audioData);
+                if (chunkNumber == 1) {
+                    log.info("📁 [FileStorage] WebM 헤더 저장됨: meetingId={}, size={}bytes", meetingId, audioData.length);
+                }
+            } catch (Exception e) {
+                // 파일 저장 실패는 치명적이지 않으므로 로그만 남기고 계속 진행 (실시간 자막은 나와야 함)
+                log.error("❌ [WebSocket] 파일 저장 실패: {}", e.getMessage());
+            }
+
+            // 첫 번째 청크는 헤더이므로 따로 저장하고 리턴
+            if (chunkNumber == 1) {
+                sessionHeaders.put(sessionId, audioData);
+                return;
+            }
+
+            List<byte[]> buffer = sessionBuffers.computeIfAbsent(sessionId, k -> new ArrayList<>());
+            buffer.add(audioData);
+
+            // [SLIDING WINDOW] 실시간 인식용 버퍼 크기 제한 (최근 15초만 유지)
+            if (buffer.size() > MAX_RT_BUFFER_SIZE) {
+                buffer.remove(0); // 가장 오래된 1초 청크 제거
+            }
+
+            // BUFFER_SIZE(5개)마다 처리하되, 헤더 + 슬라이딩 윈도우 버퍼 전송
+            if (buffer.size() % BUFFER_SIZE == 0) {
+                byte[] header = sessionHeaders.get(sessionId);
+                if (header == null)
+                    return;
+
+                byte[] rollingAudio = mergeHeaderAndChunks(header, buffer);
+
+                whisperApiClient.transcribe(rollingAudio)
+                        .subscribe(
+                                response -> {
+                                    String transText = response.getText();
+                                    if (transText != null && !transText.isBlank()) {
+                                        log.info("📡 [Whisper] Recog: {}",
+                                                transText.length() > 50 ? transText.substring(0, 50) + "..."
+                                                        : transText);
+                                    }
+                                    processTranscription(sessionId, meetingId, transText);
+                                },
+                                error -> log.error("❌ [Whisper] Error: {}", error.getMessage()));
+            }
+        } catch (Exception e) {
+            log.error("❌ [WebSocket] 처리 중 예기치 않은 오류: {}", e.getMessage(), e);
+            // 에러가 나도 세션을 닫지 않고 클라이언트가 계속 보낼 수 있게 함
         }
     }
 
     private void processTranscription(String sessionId, Integer meetingId, String text) {
         MeetingSession meetingSession = meetingSessions.get(sessionId);
-        if (meetingSession == null)
+        if (meetingSession == null || text == null || text.isBlank())
             return;
 
-        if (text != null && !text.isBlank()) {
-            meetingSession.addText(text);
-        }
+        // 누적 전송의 경우, 이전에 인식된 부분은 제외하고 새로운 부분만 추가해야 함
+        meetingSession.updateWithCumulativeText(text);
 
-        // Check for triggers (Delimiter, Size, Idleness)
-        // 텍스트가 빈 경우에도 시간 기반(Idleness) 체크를 위해 shouldSplit 호출
-        boolean isSilence = false; // Placeholder for VAD
-
-        if (meetingSession.shouldSplit(isSilence)) {
+        // Split trigger 체크
+        if (meetingSession.shouldSplit(false)) {
             String segmentText = meetingSession.popSegment(true);
             saveSegment(meetingId, meetingSession.getSegmentSeq(), segmentText, meetingSession.getCurrentMeetingTime());
         }
@@ -160,23 +169,32 @@ public class AudioWebSocketHandler extends BinaryWebSocketHandler {
         List<byte[]> buffer = sessionBuffers.get(sessionId);
         byte[] header = sessionHeaders.get(sessionId);
 
+        // 1. 남은 버퍼 처리
         if (meetingId != null && buffer != null && !buffer.isEmpty() && header != null) {
             log.info("🧹 [WebSocket] 남은 오디오 데이터 처리 중... (size={})", buffer.size());
-            // 마지막 부분은 동기적으로 처리하여 데이터 유실 방지
             try {
                 byte[] completeAudio = mergeHeaderAndChunks(header, buffer);
                 TranscribeResponse response = whisperApiClient.transcribe(completeAudio).block();
                 if (response != null && response.getText() != null) {
                     processTranscription(sessionId, meetingId, response.getText());
                 }
-
-                // 최종 남은 텍스트 강제 플러시
-                flushRemainingText(sessionId, meetingId);
             } catch (Exception e) {
                 log.error("❌ [WebSocket] 종료 시 처리 실패: {}", e.getMessage());
             }
-        } else if (meetingId != null) {
+        }
+
+        // 2. 최종 텍스트 플러시
+        if (meetingId != null) {
             flushRemainingText(sessionId, meetingId);
+
+            // 3. [DEFERRED] 화자 분리 및 최종 정리는 이제 사용자가 수동으로 트리거함
+            log.info("🏁 [Meeting] 녹음 종료: meetingId={} (수동 분석 대기 중)", meetingId);
+            try {
+                meetingService.updateStatus(meetingId, com.minipr.backend.meeting.entity.MeetingStatus.RECORDED);
+                log.info("✅ [Meeting] 상태 변경 완료: RECORDED");
+            } catch (Exception e) {
+                log.error("❌ [Meeting] 상태 변경 실패: {}", e.getMessage());
+            }
         }
 
         cleanup(sessionId);

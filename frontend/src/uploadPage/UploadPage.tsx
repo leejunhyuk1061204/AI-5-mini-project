@@ -4,8 +4,10 @@ import FileList from './components/FileList';
 import SttConversion from './components/SttConversion';
 import Sidebar from '../sidebar/Sidebar';
 import type { HistoryItem, SttResultData } from '../types';
+import { useMeetingContext } from '../context/MeetingContext';
 
 const UploadPage: React.FC = () => {
+    const { setCurrentMeetingId } = useMeetingContext();
     const [files, setFiles] = useState<File[]>([]);
     const [isDragging, setIsDragging] = useState(false);
     const [showStt, setShowStt] = useState(false);
@@ -95,7 +97,7 @@ const UploadPage: React.FC = () => {
         setShowStt(true);
     }, []);
 
-    const handleConversionComplete = useCallback((result: SttResultData) => {
+    const handleConversionComplete = useCallback((result: SttResultData, meetingId?: number) => {
         if (selectedFileIndex === null) return;
 
         const fileName = files[selectedFileIndex].name;
@@ -103,12 +105,19 @@ const UploadPage: React.FC = () => {
             id: Date.now().toString(),
             title: fileName,
             date: new Date().toISOString(),
-            data: result
+            data: result,
+            type: 'upload',
+            meetingId: meetingId
         };
+
+        // Update global meeting context for chatbot
+        if (meetingId) {
+            setCurrentMeetingId(meetingId);
+        }
 
         setHistory(prev => [newItem, ...prev]);
         setSelectedHistoryId(newItem.id);
-    }, [files, selectedFileIndex]);
+    }, [files, selectedFileIndex, setCurrentMeetingId]);
 
     const handleDeleteHistory = (id: string) => {
         setHistory(prev => prev.filter(item => item.id !== id));
@@ -191,6 +200,7 @@ const UploadPage: React.FC = () => {
                     ) : (
                         <SttConversion
                             fileName={currentFileName}
+                            file={selectedFileIndex !== null && !activeHistoryItem ? files[selectedFileIndex] : null}
                             onCancel={() => {
                                 if (activeHistoryItem) {
                                     handleNewChat();

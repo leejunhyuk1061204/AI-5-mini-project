@@ -10,6 +10,7 @@ public record MeetingResponse(
         String title,
         String fullText,
         String summary,
+        String status,
         LocalDateTime createdAt) {
     public static MeetingResponse from(Meeting m) {
         return new MeetingResponse(
@@ -18,6 +19,7 @@ public record MeetingResponse(
                 m.getTitle(),
                 m.getFullText(),
                 m.getSummary(),
+                m.getStatus().name(),
                 m.getCreatedAt());
     }
 }

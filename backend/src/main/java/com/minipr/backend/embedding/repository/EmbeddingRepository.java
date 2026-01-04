@@ -4,6 +4,7 @@ import com.minipr.backend.embedding.entity.Embedding;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
@@ -22,4 +23,7 @@ public interface EmbeddingRepository extends JpaRepository<Embedding, Long> {
 
         @Query("SELECT e FROM Embedding e JOIN FETCH e.segment s WHERE s.meeting.meetingId = :meetingId")
         List<Embedding> findAllBySegmentMeetingId(@Param("meetingId") Integer meetingId);
+
+        @Transactional
+        void deleteBySegment_Meeting_MeetingId(Integer meetingId);
 }

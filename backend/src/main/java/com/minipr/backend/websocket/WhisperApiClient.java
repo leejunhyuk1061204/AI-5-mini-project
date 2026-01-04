@@ -33,15 +33,8 @@ public class WhisperApiClient {
     public Mono<TranscribeResponse> transcribe(byte[] audioData) {
         String filename = "audio_" + System.currentTimeMillis() + ".webm";
 
-        // ===== 요청 로그 =====
-        System.out.println("========================================");
-        System.out.println("📤 [Java→Python] Whisper API 요청 전송");
-        System.out.println("   📁 파일명: " + filename);
-        System.out.println("   📊 데이터 크기: " + audioData.length + " bytes");
         MultipartBodyBuilder builder = new MultipartBodyBuilder();
-        String targetUrl = "/api/transcribe";
-        log.info("📤 [Whisper] API 요청 전송 시작: {} (크기: {} bytes)", targetUrl, audioData.length);
-        long startTime = System.currentTimeMillis();
+        // long startTime = System.currentTimeMillis();
 
         builder.part("file", new ByteArrayResource(audioData) {
             @Override
@@ -50,6 +43,9 @@ public class WhisperApiClient {
             }
         });
 
+        // log.debug("📤 [Whisper] Request: size={} bytes", audioData.length); //
+        // Optional: keep as debug or remove
+
         return webClient.post()
                 .uri("/api/transcribe")
                 .contentType(MediaType.MULTIPART_FORM_DATA)
@@ -57,24 +53,12 @@ public class WhisperApiClient {
                 .retrieve()
                 .bodyToMono(TranscribeResponse.class)
                 .doOnSuccess(response -> {
-                    long took = System.currentTimeMillis() - startTime;
-                    System.out.println("========================================");
-                    System.out.println("📥 [Python→Java] Whisper API 응답 수신");
-                    System.out.println("   📝 텍스트: " + (response.getText().length() > 80
-                            ? response.getText().substring(0, 80) + "..."
-                            : response.getText()));
-                    System.out.println("   🌐 언어: " + response.getLanguage());
-                    System.out.println("   ⏱️  오디오 길이: " + response.getDuration() + "초");
-                    System.out.println("   ⚡ Python 처리: " + response.getTookMs() + "ms");
-                    System.out.println("   🔄 전체 RTT: " + took + "ms");
-                    System.out.println("========================================");
+                    // long took = System.currentTimeMillis() - startTime;
+                    // log.info("📥 [Whisper] Response: {}ms (Python: {}ms)", took,
+                    // response.getTookMs()); // Keep it simple
                 })
                 .doOnError(error -> {
-                    System.out.println("========================================");
-                    System.out.println("❌ [Java] Whisper API 호출 실패!");
-                    System.out.println("   에러: " + error.getMessage());
-                    System.out.println("========================================");
-                    log.error("Whisper API 호출 실패: {}", error.getMessage());
+                    log.error("❌ [Whisper] API Fail: {}", error.getMessage());
                 });
     }
 }

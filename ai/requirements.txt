@@ -1,26 +1,28 @@
-# FastAPI 웹 프레임워크
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+# [1] Core Engine - GPU (CUDA 12.4) 호환 버전 고정
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+torchaudio==2.6.0+cu124
+
+# [2] Web Framework & Environment
 fastapi
 uvicorn
 python-multipart
-
-# 환경변수 관리
 python-dotenv
 
-# AI/ML 모델 관련
-torch
-transformers
-accelerate
-pyannote.audio
+# [3] Voice & Speaker Diarization (음성인식 및 화자분리)
+faster-whisper
+pyannote.audio==3.1.1
 speechbrain
 omegaconf
 
-# 임베딩 모델
+# [4] NLP & Embedding (채팅 및 문장 유사도)
+transformers
+accelerate
 sentence-transformers
 numpy
 
-# 음성인식 (Whisper)
-faster-whisper
-
-# LLM API 클라이언트
-openai
-google-genai
+# [5] Optional LLM APIs (필요 시 활성화)
+# openai
+# google-genai

@@ -5,6 +5,8 @@ export interface HistoryMessage {
 
 export interface ChatRequest {
     meetingId: number;
+    memberId?: number;
+    searchAll?: boolean;
     message: string;
     session_id?: string;
     history?: HistoryMessage[];

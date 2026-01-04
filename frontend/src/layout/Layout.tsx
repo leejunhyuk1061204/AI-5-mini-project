@@ -3,13 +3,12 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
 import Chatbot from '../chatbot/Chatbot';
+import { useMeetingContext } from '../context/MeetingContext';
 
 const Layout: React.FC = () => {
-    // Initialize open state based on screen width (Desktop: Open, Mobile: Closed)
-    const [isChatbotOpen, setIsChatbotOpen] = React.useState(window.innerWidth >= 1024);
     const location = useLocation();
     const isLandingPage = location.pathname === '/';
-    const isLivePage = location.pathname === '/live';
+    const { currentMeetingId, isChatbotOpen, setIsChatbotOpen } = useMeetingContext();
 
     // Automatically handle visibility on window resize
     React.useEffect(() => {
@@ -21,13 +20,9 @@ const Layout: React.FC = () => {
             }
         };
 
-        // Add event listener
         window.addEventListener('resize', handleResize);
-
-        // Initial check is handled by useState initializer, but safe to verify
-        // Cleanup
         return () => window.removeEventListener('resize', handleResize);
-    }, []);
+    }, [setIsChatbotOpen]);
 
     return (
         <div className="flex flex-col h-screen overflow-hidden bg-[#f6f6f8] relative">
@@ -36,21 +31,22 @@ const Layout: React.FC = () => {
                 <div className="flex-1 flex flex-col relative min-w-0 overflow-hidden h-full">
                     <Outlet />
                 </div>
-                {!isLandingPage && !isLivePage && (
+                {!isLandingPage && (
                     <Chatbot
                         isOpen={isChatbotOpen}
                         onClose={() => setIsChatbotOpen(false)}
-                        meetingId={0} // Global chatbot context (default)
+                        meetingId={currentMeetingId}
                     />
                 )}
             </main>
             <Footer
                 onToggleChatbot={() => setIsChatbotOpen(!isChatbotOpen)}
                 isChatbotOpen={isChatbotOpen}
-                showChatbotToggle={!isLandingPage && !isLivePage}
+                showChatbotToggle={!isLandingPage}
             />
         </div>
     );
 };
 
 export default Layout;
+

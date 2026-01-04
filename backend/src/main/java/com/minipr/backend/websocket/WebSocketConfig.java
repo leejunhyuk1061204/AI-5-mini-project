@@ -1,6 +1,7 @@
 package com.minipr.backend.websocket;
 
 import com.minipr.backend.meeting.repository.MeetingRepository;
+import com.minipr.backend.meeting.service.MeetingService;
 import com.minipr.backend.segment.repository.RealtimeSegmentRepository;
 import com.minipr.backend.service.FileStorageService;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
     private final RealtimeSegmentRepository realtimeSegmentRepository;
     private final MeetingRepository meetingRepository;
     private final FileStorageService fileStorageService;
+    private final MeetingService meetingService;
     private final ApplicationEventPublisher eventPublisher;
 
     public WebSocketConfig(
@@ -34,11 +36,13 @@ public class WebSocketConfig implements WebSocketConfigurer {
             RealtimeSegmentRepository realtimeSegmentRepository,
             MeetingRepository meetingRepository,
             FileStorageService fileStorageService,
+            MeetingService meetingService,
             ApplicationEventPublisher eventPublisher) {
         this.whisperApiClient = whisperApiClient;
         this.realtimeSegmentRepository = realtimeSegmentRepository;
         this.meetingRepository = meetingRepository;
         this.fileStorageService = fileStorageService;
+        this.meetingService = meetingService;
         this.eventPublisher = eventPublisher;
     }
 
@@ -55,6 +59,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
                 realtimeSegmentRepository,
                 meetingRepository,
                 fileStorageService,
+                meetingService,
                 eventPublisher);
     }
 

@@ -36,4 +36,13 @@ public class FileStorageService {
     public Path getFilePath(Long meetingId) {
         return rootLocation.resolve("meeting_" + meetingId + ".webm");
     }
+
+    public void deleteAudio(Long meetingId) {
+        Path filePath = rootLocation.resolve("meeting_" + meetingId + ".webm");
+        try {
+            Files.deleteIfExists(filePath);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not delete audio file", e);
+        }
+    }
 }

@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface FinalEmbeddingRepository extends JpaRepository<FinalEmbedding, Long> {
@@ -20,4 +21,11 @@ public interface FinalEmbeddingRepository extends JpaRepository<FinalEmbedding, 
     void saveEmbedding(@Param("segmentId") Long segmentId, @Param("vectorStr") String vectorStr);
 
     Optional<FinalEmbedding> findByFinalSegment_Id(Long segmentId);
+
+    List<FinalEmbedding> findAllByFinalSegment_Meeting_MeetingId(Integer meetingId);
+
+    List<FinalEmbedding> findAllByFinalSegment_Meeting_Member_MemberId(Integer memberId);
+
+    @Transactional
+    void deleteByFinalSegment_Meeting_MeetingId(Integer meetingId);
 }

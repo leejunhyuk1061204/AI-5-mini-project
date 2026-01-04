@@ -2,6 +2,7 @@
 Whisper 음성 변환 API 라우터
 POST /api/transcribe 엔드포인트 제공
 """
+import asyncio
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel, Field
 import tempfile
@@ -81,17 +82,8 @@ def get_whisper_model() -> WhisperModelWrapper:
 async def transcribe(file: UploadFile = File(..., description="음성 파일 (mp3, wav, m4a 등)")):
     """
     음성 파일을 텍스트로 변환하는 엔드포인트
-    
-    - 지원 형식: mp3, wav, m4a, mp4, flac, ogg 등
-    - 한국어로 변환
     """
     start_time = time.time()
-    
-    # ===== 데이터 흐름 로그 =====
-    print("="*60)
-    print("[Whisper] API Request received")
-    print(f"   File: {file.filename}")
-    print(f"   Content-Type: {file.content_type}")
     
     # 파일 확장자 확인
     allowed_extensions = {".mp3", ".wav", ".m4a", ".mp4", ".flac", ".ogg", ".webm"}
@@ -112,22 +104,17 @@ async def transcribe(file: UploadFile = File(..., description="음성 파일 (mp
             tmp.write(content)
             tmp_path = tmp.name
         
-        print(f"   Size: {len(content)} bytes")
-        print(f"   [Whisper] Processing...")
+        # print(f"[Whisper] Processing... Size: {len(content)} bytes") 
         
         try:
-            # 음성 변환
-            text, info = model.transcribe(tmp_path)
+            # 음성 변환 (비동기 스레드에서 실행)
+            loop = asyncio.get_event_loop()
+            text, info = await loop.run_in_executor(None, model.transcribe, tmp_path)
             
             took_ms = int((time.time() - start_time) * 1000)
             
-            # ===== 결과 로그 =====
-            print(f"   [OK] Whisper done!")
-            print(f"   Result: {text[:100]}{'...' if len(text) > 100 else ''}")
-            print(f"   Language: {info.language}")
-            print(f"   Duration: {round(info.duration, 2)}s")
-            print(f"   Process time: {took_ms}ms")
-            print("="*60)
+            # ===== 결과 로그 (간소화) =====
+            # print(f"[Whisper] Done: {took_ms}ms, Duration: {round(info.duration, 2)}s")
             
             return TranscribeResponse(
                 text=text,
@@ -140,14 +127,7 @@ async def transcribe(file: UploadFile = File(..., description="음성 파일 (mp
             Path(tmp_path).unlink(missing_ok=True)
     
     except Exception as e:
-        import traceback
-        print("=" * 50)
-        print("[ERROR] Transcription failed!")
-        print(f"   파일명: {file.filename}")
-        print(f"   에러: {str(e)}")
-        print("상세 스택트레이스:")
-        traceback.print_exc()
-        print("=" * 50)
+        print(f"[ERROR] Whisper Failed: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"음성 변환 중 오류 발생: {str(e)}"
