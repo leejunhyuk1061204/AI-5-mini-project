@@ -8,8 +8,8 @@ console.log(`Detected OS: ${isWin ? 'Windows' : 'macOS/Linux'}`);
 
 // Define commands based on OS
 const backendCmd = isWin
-    ? 'cd backend && gradlew.bat bootRun'
-    : 'cd backend && ./gradlew bootRun';
+    ? 'cd backend && gradlew.bat bootRun --args="--spring.profiles.active=local"'
+    : 'cd backend && ./gradlew bootRun --args="--spring.profiles.active=local"';
 
 // Windows usually uses 'python', Mac/Linux usually 'python3'
 const pythonCmd = isWin ? 'python' : 'python3';

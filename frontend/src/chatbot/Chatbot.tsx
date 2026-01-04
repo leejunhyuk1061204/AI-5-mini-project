@@ -22,6 +22,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, meetingId }) => {
     const [inputValue, setInputValue] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string | undefined>(undefined);
+    const [searchAll, setSearchAll] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -49,8 +50,12 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, meetingId }) => {
                 content: msg.text
             }));
 
+            const memberId = Number(localStorage.getItem('memberId')) || 1;
+
             const response = await sendMessage({
                 meetingId: meetingId,
+                memberId: memberId,
+                searchAll: searchAll,
                 message: userMessage,
                 session_id: sessionId,
                 history: history
@@ -116,14 +121,27 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose, meetingId }) => {
                         <span className="material-symbols-outlined text-[#135bec]">smart_toy</span>
                         <span className="font-bold text-[#0d121b]">AI Assistant</span>
                     </div>
-                    {/* Restored Close Button */}
-                    <button
-                        onClick={onClose}
-                        className="p-1 rounded-full hover:bg-[#e7ebf0] text-[#444746] transition-colors"
-                        title="닫기"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">close</span>
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {/* Search Mode Toggle */}
+                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white border border-[#e7ebf3] shadow-sm">
+                            <span className={`text-[10px] font-bold transition-colors ${!searchAll ? 'text-[#135bec]' : 'text-gray-400'}`}>Current</span>
+                            <button
+                                onClick={() => setSearchAll(!searchAll)}
+                                className={`w-8 h-4 rounded-full relative transition-colors ${searchAll ? 'bg-[#135bec]' : 'bg-gray-300'}`}
+                            >
+                                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${searchAll ? 'left-[17px]' : 'left-0.5'}`}></div>
+                            </button>
+                            <span className={`text-[10px] font-bold transition-colors ${searchAll ? 'text-[#135bec]' : 'text-gray-400'}`}>Global</span>
+                        </div>
+                        {/* Restored Close Button */}
+                        <button
+                            onClick={onClose}
+                            className="p-1 rounded-full hover:bg-[#e7ebf0] text-[#444746] transition-colors"
+                            title="닫기"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">close</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Messages Area */}

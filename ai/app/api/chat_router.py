@@ -10,7 +10,12 @@ import uuid
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
+import asyncio
+import logging
+import re
+
 router = APIRouter(prefix="/api", tags=["chat"])
+logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────
 # Pydantic 모델 정의
@@ -58,7 +63,7 @@ class ChatModel:
         
         model_name = "Qwen/Qwen3-0.6B"
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"[ChatModel] Loading model: {model_name} (device: {self.device})")
+        logger.info(f"[ChatModel] Loading model: {model_name} (device: {self.device})")
         
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
@@ -69,7 +74,7 @@ class ChatModel:
         if self.device == "cpu":
             self.model = self.model.to(self.device)
         
-        print("[ChatModel] Model loading complete!")
+        logger.info("[ChatModel] Model loading complete!")
 
     def generate(self, messages: List[Dict[str, str]]) -> str:
         """메시지 리스트를 받아 응답 생성"""
@@ -83,7 +88,7 @@ class ChatModel:
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=512,
+                max_new_tokens=256,
                 temperature=0.7,
                 top_p=0.9,
                 repetition_penalty=1.1,
@@ -95,6 +100,8 @@ class ChatModel:
             outputs[0][inputs["input_ids"].shape[1]:],
             skip_special_tokens=True
         )
+        # Strip any thinking/reasoning blocks (e.g., <think>...</think>, <thought>...</thought>)
+        response = re.sub(r'<(think|thought)>.*?(</\1>|$)', '', response, flags=re.DOTALL | re.IGNORECASE)
         return response.strip()
 
 
@@ -131,7 +138,7 @@ async def chat(req: ChatRequest):
     
     # 세션 ID 생성 또는 사용
     session_id = req.session_id or str(uuid.uuid4())[:8]
-    print(f"[Chat] Request received - session_id: {session_id}")
+    logger.info(f"[Chat] Request received - session_id: {session_id}")
     
     try:
         model = get_chat_model()
@@ -142,11 +149,13 @@ async def chat(req: ChatRequest):
         # 1. 시스템 프롬프트
         system_prompt = (
             "당신은 'AI 회의록' 서비스의 지능형 어시스턴트입니다.\n"
-            "사용자의 제공된 [참조 컨텍스트]를 바탕으로 질문에 답변해야 합니다.\n"
-            "만약 질문에 대한 답이 [참조 컨텍스트]에 없다면, 외부 지식을 사용하기보다 "
-            "'제공된 회의 내용에서는 해당 정보를 찾을 수 없습니다'라고 정직하게 답변해 주세요.\n"
-            "회의 내용을 바탕으로 요약, 할 일(Action Item) 추출, 일정 정리 등을 명확히 수행하세요.\n"
-            "모든 답변은 한국어로 명확하고 전문적인 어조로 작성해야 합니다."
+            "사용자의 질문에 대해 [참조 컨텍스트]를 최우선으로 사용하여 답변하세요.\n"
+            "단, 다음과 같은 지침을 '반드시' 따르세요:\n"
+            "1. 모든 답변은 반드시 한국어(Korean)로만 작성하세요. 영어를 섞지 마세요.\n"
+            "2. 당신의 생각(thought, reasoning)이나 과정은 절대 답변에 포함하지 마세요. 오직 최종 답변만 출력하세요.\n"
+            "3. 질문에 대한 답이 [참조 컨텍스트]에 없다면, 해당 정보가 없음을 정중히 알리세요.\n"
+            "4. 요약이나 할 일(Action Item)은 나열할 때 **글머리 기호(-)**를 사용하세요.\n"
+            "5. '안녕'과 같은 인사에는 친절하게 한국어로 응대하세요."
         )
         
         # 2. 컨텍스트가 있으면 시스템 프롬프트에 추가
@@ -168,12 +177,13 @@ async def chat(req: ChatRequest):
         # 4. 현재 사용자 메시지
         messages.append({"role": "user", "content": req.message})
         
-        # 응답 생성
-        print(f"[Chat] Generating reply...")
-        reply = model.generate(messages)
+        # 응답 생성 (비동기 처리)
+        logger.info(f"[Chat] Generating reply...")
+        loop = asyncio.get_event_loop()
+        reply = await loop.run_in_executor(None, model.generate, messages)
         
         took_ms = int((time.time() - start_time) * 1000)
-        print(f"[Chat] Reply complete - took: {took_ms}ms")
+        logger.info(f"[Chat] Reply complete - took: {took_ms}ms")
         
         return ChatResponse(
             session_id=session_id,

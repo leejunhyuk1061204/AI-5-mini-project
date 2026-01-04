@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface FinalSegmentRepository extends JpaRepository<FinalSegment, Long> {
     List<FinalSegment> findByMeeting_MeetingIdOrderBySegmentSeq(Integer meetingId);
+
+    void deleteByMeeting_MeetingId(Integer meetingId);
 }

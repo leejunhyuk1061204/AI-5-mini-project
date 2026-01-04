@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from '../sidebar/Sidebar';
 import type { HistoryItem } from '../types';
-import { useMeetingContext } from '../context/MeetingContext';
-import { useNavigate } from 'react-router-dom';
 
 // Type definitions for Web Speech API
 interface SpeechRecognitionEvent extends Event {
@@ -52,8 +50,6 @@ declare global {
 }
 
 const LiveSttPage: React.FC = () => {
-    const navigate = useNavigate();
-    const { setCurrentMeetingId: setContextMeetingId } = useMeetingContext();
     // Load temp data
     const loadTempData = () => {
         try {
@@ -75,7 +71,6 @@ const LiveSttPage: React.FC = () => {
     const [interimTranscript, setInterimTranscript] = useState('');
     const recognitionRef = useRef<SpeechRecognition | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
-    const isIntentionalStop = useRef(false);
 
     // MediaRecorder for audio recording
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -88,10 +83,6 @@ const LiveSttPage: React.FC = () => {
     // meetingId를 URL 파라미터에서 읽음 (예: /live?meetingId=1)
     const meetingIdParam = new URLSearchParams(window.location.search).get('meetingId');
     const [currentMeetingId, setCurrentMeetingId] = useState<number | null>(
-        meetingIdParam ? Number(meetingIdParam) : null
-    );
-    // 챗봇용 meetingId (녹음 종료 후에도 유지)
-    const [lastMeetingId, setLastMeetingId] = useState<number | null>(
         meetingIdParam ? Number(meetingIdParam) : null
     );
 
@@ -110,13 +101,6 @@ const LiveSttPage: React.FC = () => {
 
     const [summary, setSummary] = useState<string | null>(tempData?.summary || null);
     const [isSummarizing, setIsSummarizing] = useState(false);
-
-    // Sync context meeting ID
-    useEffect(() => {
-        if (lastMeetingId) {
-            setContextMeetingId(lastMeetingId);
-        }
-    }, [lastMeetingId, setContextMeetingId]);
 
     // Auto-save temp data
     useEffect(() => {
@@ -151,18 +135,7 @@ const LiveSttPage: React.FC = () => {
             };
 
             recognition.onend = () => {
-                // 의도적으로 멈춘 게 아니라면 (엔진 자동 종료 등) 다시 시작
-                if (!isIntentionalStop.current) {
-                    try {
-                        recognition.start();
-                        console.log('SpeechRecognition 자동 재시작');
-                    } catch (e) {
-                        console.error('재시작 실패:', e);
-                        setIsListening(false);
-                    }
-                } else {
-                    setIsListening(false);
-                }
+                setIsListening(false);
             };
 
             recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -216,19 +189,9 @@ const LiveSttPage: React.FC = () => {
         };
     }, []);
 
-    // WebSocket Reconnection Logic
-    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const reconnectAttemptsRef = useRef(0);
-    const MAX_RECONNECT_ATTEMPTS = 5;
-
     // Connect WebSocket for audio streaming
-    const connectWebSocket = useCallback((meetingId: number) => {
+    const connectWebSocket = (meetingId: number) => {
         return new Promise<WebSocket>((resolve, reject) => {
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                resolve(wsRef.current);
-                return;
-            }
-
             const wsUrl = `${JAVA_WS_URL}/ws/audio?meetingId=${meetingId}`;
             console.log("WS 연결 시도:", wsUrl, "meetingId:", meetingId);
 
@@ -238,57 +201,28 @@ const LiveSttPage: React.FC = () => {
             ws.onopen = () => {
                 console.log('WebSocket 연결됨');
                 wsRef.current = ws;
-                reconnectAttemptsRef.current = 0; // Reset attempts on success
-                // UI 알림 (Connection restored)
-                const toast = document.getElementById('connection-toast');
-                if (toast) toast.style.display = 'none';
                 resolve(ws);
             };
 
             ws.onclose = (e) => {
-                console.log('WebSocket 종료됨', e.code, e.reason, "url=", ws.url);
-                wsRef.current = null;
-
-                // 비정상 종료이고, 재시도 횟수가 남았으며, 녹음 중일 때
-                if (!isIntentionalStop.current && isListening && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-                    const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 5000);
-                    reconnectAttemptsRef.current++;
-
-                    // UI 알림 (Reconnecting...)
-                    const toast = document.getElementById('connection-toast');
-                    if (toast) {
-                        toast.style.display = 'flex';
-                        toast.innerText = `서버 연결이 끊겨 재전송합니다... (${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`;
-                    }
-
-                    console.log(`재연결 시도 ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`);
-                    reconnectTimeoutRef.current = setTimeout(() => {
-                        connectWebSocket(meetingId).catch(err => console.error("재연결 실패", err));
-                    }, delay);
-                }
+                console.log('WebSocket 종료됨', (e as CloseEvent).code, (e as CloseEvent).reason, "url=", ws.url);
             };
 
             ws.onerror = (error) => {
                 console.error('WebSocket 오류:', error);
-                // 에러 발생 시에도 onclose가 호출되므로 거기서 처리
                 reject(error);
             };
         });
-    }, [isListening]);
+    };
 
     // Disconnect WebSocket
-    const disconnectWebSocket = useCallback(() => {
-        isIntentionalStop.current = true; // 명시적 종료 표시
-        if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current);
-            reconnectTimeoutRef.current = null;
-        }
+    const disconnectWebSocket = () => {
         if (wsRef.current) {
             wsRef.current.close();
             wsRef.current = null;
             console.log('WebSocket 연결 해제됨');
         }
-    }, []);
+    };
 
     // Start MediaRecorder
     const startMediaRecorder = async (meetingId: number) => {
@@ -333,19 +267,13 @@ const LiveSttPage: React.FC = () => {
                 mediaRecorderRef.current = null;
                 console.log('MediaRecorder 완전히 정지됨');
 
-                // 녹음 정지 시 미팅 ID 초기화 (다음 녹음 때 새 미팅 생성을 위해)
-                setCurrentMeetingId(null);
-                const newUrl = new URL(window.location.href);
-                newUrl.searchParams.delete('meetingId');
-                window.history.pushState({}, '', newUrl.toString());
-
                 // 녹음 종료 후 다운로드 확인
                 setTimeout(() => {
                     if (window.confirm('녹음한 후에 파일 다운로드 하시겠습니까?')) {
-                        const downloadUrl = `/api/files/download/${meetingId}`; // 여기서 meetingId는 클로저로 전달된 값
+                        const downloadUrl = `/api/files/download/${meetingId}`;
                         const link = document.createElement('a');
                         link.href = downloadUrl;
-                        link.download = `meeting_${meetingId}.webm`;
+                        link.download = `meeting_${meetingId}.webm`; // Optional, backend header usually handles this
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
@@ -389,41 +317,36 @@ const LiveSttPage: React.FC = () => {
             });
 
             if (!res.ok) {
-                const errorData = await res.json().catch(() => ({}));
-                console.error('회의 생성 실패 response:', res.status, errorData);
-                throw new Error(`회의 생성 실패 (Status: ${res.status})`);
+                throw new Error('회의 생성 실패');
             }
 
-            const data = await res.json();
+            const data = await res.json(); // ApiResponse
+            // data.data is MeetingResponse
             const newMeetingId = data.data.meetingId;
             console.log('새 회의 생성됨:', newMeetingId);
             return newMeetingId;
 
         } catch (e) {
-            console.error('회의 생성 중 상세 오류:', e);
-            alert(`회의를 생성할 수 없습니다: ${e instanceof Error ? e.message : '알 수 없는 오류'}`);
+            console.error('회의 생성 중 오류:', e);
+            alert('회의를 생성할 수 없습니다.');
             return null;
         }
     };
 
     const toggleListening = async () => {
         if (isListening) {
-            isIntentionalStop.current = true; // 의도적 중지임을 표시하여 자동 재시작 방지
             recognitionRef.current?.stop();
             stopMediaRecorder();
         } else {
-            isIntentionalStop.current = false; // 시작 시 플래그 초기화
             let targetMeetingId = currentMeetingId;
 
-            if (true) { // 무조건 새 미팅 생성 (기존 targetMeetingId 체크 로직 제거)
+            if (!targetMeetingId) {
                 const newId = await createMeeting();
-                if (!newId) return;
+                if (!newId) return; // 생성 실패 or 로그인 안됨
                 targetMeetingId = newId;
                 setCurrentMeetingId(newId);
-                setLastMeetingId(newId); // 챗봇용 meetingId 업데이트
-                setSummary(null);
 
-                // URL 업데이트 (새로고침 시 유지용)
+                // URL 업데이트 (선택사항, 새로고침 시 유지용)
                 const newUrl = new URL(window.location.href);
                 newUrl.searchParams.set('meetingId', String(newId));
                 window.history.pushState({}, '', newUrl.toString());
@@ -436,112 +359,47 @@ const LiveSttPage: React.FC = () => {
         }
     };
 
-    // Clear transcript and meeting from DB
-    const handleClear = async () => {
-        if (isListening) {
-            alert('녹음 중에는 삭제할 수 없습니다. 먼저 녹음을 중지해주세요.');
-            return;
-        }
-        if (!lastMeetingId) {
-            alert('삭제할 기록이 없습니다.');
-            return;
-        }
-        if (!window.confirm('정말로 기록을 삭제하시겠습니까? 데이터베이스에서도 영구 삭제됩니다.')) return;
-
-        try {
-            if (lastMeetingId) {
-                await fetch(`/api/meetings/${lastMeetingId}`, { method: 'DELETE' });
-            }
-            // Reset all states
+    // Clear transcript
+    const handleClear = () => {
+        if (window.confirm('정말로 기록을 삭제하시겠습니까? 임시 저장된 내용도 삭제됩니다.')) {
             setTranscripts([]);
             setInterimTranscript('');
             setSummary(null);
-            setLastMeetingId(0);
-            setCurrentMeetingId(null);
-
-            // Clear meetingId from URL
-            const url = new URL(window.location.href);
-            url.searchParams.delete('meetingId');
-            window.history.pushState({}, '', url.toString());
-
-            alert('삭제되었습니다.');
-        } catch (error) {
-            console.error('Delete error:', error);
-            alert('삭제에 실패했습니다.');
         }
-    };
+    }
 
-    const handleSave = async () => {
-        if (isListening) {
-            alert('녹음 중에는 저장할 수 없습니다. 먼저 녹음을 중지해주세요.');
-            return;
-        }
-        if (!lastMeetingId) {
-            alert('저장할 회의 정보가 없습니다. 대화를 시작해주세요.');
-            return;
-        }
-
-        setIsSummarizing(true);
-        try {
-            // 분석이 안 되어 있을 수 있으므로 retry API 호출 (Background)
-            await fetch(`/api/meetings/${lastMeetingId}/retry`, { method: 'POST' });
-
-            alert('회의록이 저장되었습니다. 히스토리에서 확인하실 수 있습니다.');
-            navigate('/history');
-
-            // Reset state and session
-            setTranscripts([]);
-            setInterimTranscript('');
-            setSummary(null);
-            setSummary(null);
-            setLastMeetingId(0);
-            setCurrentMeetingId(null);
-
-            const url = new URL(window.location.href);
-            url.searchParams.delete('meetingId');
-            window.history.pushState({}, '', url.toString());
-
-        } catch (e) {
-            console.error('Save error:', e);
-            alert('저장에 실패했습니다.');
-        } finally {
-            setIsSummarizing(false);
-        }
-    };
-
-    const handleSummarize = async () => {
-        if (isListening) {
-            alert('녹음 중에는 요약할 수 없습니다. 먼저 녹음을 중지해주세요.');
-            return;
-        }
-        if (!lastMeetingId) {
-            alert('요약할 회의 정보가 없습니다. 대화를 시작해주세요.');
-            return;
-        }
-
-        setIsSummarizing(true);
-        try {
-            // retry API를 사용하여 수동 분석 트리거
-            const response = await fetch(`http://localhost:8080/api/meetings/${lastMeetingId}/fast-summary`, {
-                method: 'POST',
-            });
-            if (!response.ok) throw new Error('분석 요청에 실패했습니다.');
-
-            const data = await response.json();
-            const meeting = data.data;
-
-            if (meeting.summary && meeting.summary !== '요약 생성 실패') {
-                setSummary(meeting.summary);
-                // resultData는 정밀분석 완료 시에만 사용하기 위해 여기서는 설정하지 않음
-            } else {
-                alert('AI 분석 결과가 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+    const handleSave = () => {
+        const fullText = transcripts.join(' ');
+        const newItem: HistoryItem = {
+            id: Date.now().toString(),
+            title: `실시간 회의록 ${new Date().toLocaleString()}`,
+            date: new Date().toISOString(),
+            type: 'live',
+            data: {
+                description: fullText,
+                core_summary: summary ? [summary] : ['실시간 기록된 내용입니다.'],
+                meeting_type: 'Live Meeting',
+                topics: [],
+                decisions: [],
+                action_items: [],
+                pending_items: []
             }
-        } catch (e) {
-            console.error('Failed to fetch summary', e);
-            alert('요약 정보를 가져오는데 실패했습니다.');
-        } finally {
+        };
+
+        setHistory(prev => [newItem, ...prev]);
+        setSelectedHistoryId(newItem.id);
+        alert('회의록이 저장되었습니다.');
+    };
+
+    const handleSummarize = () => {
+        setIsSummarizing(true);
+
+        // Mock API call delay
+        setTimeout(() => {
+            const mockSummary = "이번 회의에서는 주요 프로젝트 일정에 대한 논의가 있었습니다. 팀원들은 각자의 진행 상황을 공유했고, 다음 주까지 프로토타입을 완성하기로 합의했습니다. 또한, 디자인 시안에 대한 피드백을 수집하여 수요일까지 수정안을 제출하기로 결정했습니다.";
+            setSummary(mockSummary);
             setIsSummarizing(false);
-        }
+        }, 2000);
     };
 
     const handleDeleteHistory = (id: string) => {
@@ -564,15 +422,6 @@ const LiveSttPage: React.FC = () => {
             />
 
             <main className="flex-1 flex flex-col h-full overflow-hidden relative transition-all duration-300">
-                {/* Connection Toast Notification */}
-                <div
-                    id="connection-toast"
-                    className="hidden absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-amber-500 text-white px-4 py-2 rounded-full shadow-lg text-sm font-bold items-center gap-2 animate-bounce"
-                >
-                    <span className="material-symbols-outlined text-[18px]">wifi_off</span>
-                    <span>서버 연결 끊김. 재연결 중...</span>
-                </div>
-
                 <div className="flex-1 flex flex-col max-w-[960px] mx-auto w-full p-4 md:p-8 pt-2 md:pt-8 min-h-0 overflow-hidden">
 
                     {/* Header */}
@@ -595,9 +444,9 @@ const LiveSttPage: React.FC = () => {
                         <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 no-scrollbar">
                             <button
                                 onClick={handleSummarize}
-                                disabled={isSummarizing}
+                                disabled={isSummarizing || isListening}
                                 className={`px-3 py-2 md:px-4 text-sm font-bold text-white rounded-lg transition-all shadow-sm flex items-center gap-2 whitespace-nowrap shrink-0
-                                    ${isSummarizing
+                                    ${isSummarizing || isListening
                                         ? 'bg-gray-400 cursor-not-allowed'
                                         : 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700'
                                     }`}
@@ -616,15 +465,13 @@ const LiveSttPage: React.FC = () => {
                             </button>
                             <button
                                 onClick={handleSave}
-                                disabled={isSummarizing}
-                                className="px-3 py-2 md:px-4 text-sm font-bold text-white bg-[#135bec] hover:bg-blue-700 disabled:bg-gray-400 rounded-lg transition-colors shadow-sm whitespace-nowrap shrink-0"
+                                className="px-3 py-2 md:px-4 text-sm font-bold text-white bg-[#135bec] hover:bg-blue-700 rounded-lg transition-colors shadow-sm whitespace-nowrap shrink-0"
                             >
                                 저장하기
                             </button>
                             <button
                                 onClick={handleClear}
-                                disabled={isSummarizing}
-                                className="px-3 py-2 md:px-4 text-sm font-semibold text-[#4c669a] hover:bg-[#e7ebf3] disabled:opacity-50 rounded-lg transition-colors border border-transparent hover:border-[#cfd7e7] whitespace-nowrap shrink-0"
+                                className="px-3 py-2 md:px-4 text-sm font-semibold text-[#4c669a] hover:bg-[#e7ebf3] rounded-lg transition-colors border border-transparent hover:border-[#cfd7e7] whitespace-nowrap shrink-0"
                             >
                                 지우기
                             </button>
@@ -657,40 +504,19 @@ const LiveSttPage: React.FC = () => {
                         {/* AI Summary Section - Conditionally rendered within scroll view */}
                         {(summary || isSummarizing) && (
                             <div className="mt-8 pt-8 border-t border-[#e7ebf3] animate-fade-in text-left">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-2 text-[#135bec]">
-                                        <span className="material-symbols-outlined">auto_awesome</span>
-                                        <h3 className="font-bold text-lg">AI 실시간 브리핑</h3>
-                                    </div>
-                                    <span className="text-[11px] text-gray-400 font-medium">
-                                        실시간 데이터 기반 브리핑입니다.
-                                    </span>
+                                <div className="flex items-center gap-2 mb-4 text-[#135bec]">
+                                    <span className="material-symbols-outlined">auto_awesome</span>
+                                    <h3 className="font-bold text-lg">AI 요약</h3>
                                 </div>
-                                <div className="bg-white rounded-2xl p-8 border border-[#e7ebf3] shadow-md hover:shadow-lg transition-shadow">
-                                    {isSummarizing ? (
-                                        <div className="flex items-center gap-3 text-[#4c669a]">
-                                            <div className="w-5 h-5 border-2 border-[#135bec]/30 border-t-[#135bec] rounded-full animate-spin"></div>
-                                            <span className="font-medium">회의 내용을 분석하여 브리핑을 생성하고 있습니다...</span>
-                                        </div>
-                                    ) : (
-                                        <div className="prose prose-sm max-w-none text-[#0d121b]">
-                                            {summary?.split('\n').map((line, i) => {
-                                                const trimmed = line.trim();
-                                                // 제목, 알림, 안내 문구, 구분선 성격의 라인은 아예 렌더링하지 않음
-                                                if (trimmed.startsWith('### ') || trimmed.startsWith('#### ')) return null;
-                                                if (trimmed.startsWith('> ') || trimmed.includes('알림')) return null;
-                                                if (trimmed.startsWith('*') || trimmed.includes('저장하기')) return null; // 안내 문구 필터링
-                                                if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) return <li key={i} className="ml-4 mb-1 list-disc marker:text-[#135bec]">{trimmed.replace(/^[-•]\s*/, '')}</li>;
-                                                if (trimmed === '---') return null;
-                                                return trimmed ? <p key={i} className="mb-2 leading-relaxed">{trimmed}</p> : null;
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="mt-2 text-right">
-                                    <span className="text-[11px] text-gray-400 font-medium italic">
-                                        ※ 전체 세부 회의록과 화자 분석 결과는 [저장하기] 후에 확인하실 수 있습니다.
-                                    </span>
+                                <div className="bg-[#f8faff] rounded-xl p-6 border border-[#e7ebf3]">
+                                    <p className="text-[#0d121b] leading-relaxed">
+                                        {summary || (
+                                            <span className="flex items-center gap-2 text-[#4c669a]">
+                                                <span className="w-4 h-4 border-2 border-[#4c669a]/30 border-t-[#4c669a] rounded-full animate-spin"></span>
+                                                AI가 회의 내용을 요약하고 있습니다...
+                                            </span>
+                                        )}
+                                    </p>
                                 </div>
                             </div>
                         )}
@@ -728,8 +554,6 @@ const LiveSttPage: React.FC = () => {
                 </div>
 
             </main>
-
-
         </div>
     );
 };

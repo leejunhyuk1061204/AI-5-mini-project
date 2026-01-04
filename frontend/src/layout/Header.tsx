@@ -49,13 +49,13 @@ const Header: React.FC = () => {
                             실시간 회의록
                         </Link>
                         <Link
-                            to="/upload"
-                            className={`px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${location.pathname === '/upload'
+                            to="/history"
+                            className={`px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${location.pathname === '/history'
                                 ? 'text-[#135bec] bg-blue-50'
                                 : 'text-[#444746] hover:bg-[#f0f4f9]'
                                 }`}
                         >
-                            파일 업로드
+                            회의 히스토리
                         </Link>
                     </nav>
                 </div>

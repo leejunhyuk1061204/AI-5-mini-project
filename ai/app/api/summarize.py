@@ -76,52 +76,60 @@ class MeetingSummarizer:
     def summarize(self, text: str) -> Dict[str, Any]:
         """
         회의 내용을 구조화된 JSON 형식으로 요약
-        
-        Args:
-            text: 요약할 회의 텍스트
-            
-        Returns:
-            구조화된 회의록 딕셔너리
         """
-        prompt = f"""당신은 회의록 요약 전문가입니다. 아래 회의 내용을 분석하여 정확히 다음 JSON 형식으로 요약해주세요.
+        print(f"\n[AI] 요약 요청 수신 (텍스트 길이: {len(text)})")
+        print(f"[AI] GPU(CUDA) 사용 여부: {self.device == 'cuda'}")
+        print(f"[AI] 입력 텍스트 미리보기: {text[:200]}...")
 
-회의 내용:
+        # 텍스트가 너무 짧거나 무의미한 경우 처리
+        if not text or len(text.strip()) < 10:
+             return {
+                "description": "회의 내용이 너무 짧아 요약할 수 없습니다.",
+                "core_summary": ["충분한 회의 데이터가 수집되지 않았습니다."],
+                "meeting_type": "정보 부족",
+                "topics": [],
+                "decisions": [],
+                "action_items": [],
+                "pending_items": []
+            }
+
+        prompt = f"""당신은 회의록 요약 전문가입니다. 아래 회의 내용을 분석하여 **반드시** 지정된 JSON 형식으로만 답변하세요.
+
+회의 내용 (STT 전사 결과):
 {text}
 
-다음 JSON 형식으로만 응답하세요 (다른 텍스트 없이 JSON만):
+### 지침:
+1. **내용 충실성**: 반드시 제공된 회의 내용만을 바탕으로 요약하세요. 모르는 내용을 지어내지 마세요 (환각 방지).
+2. **STT 오류 교정**: '박백업'->'백엔드', '스탱'->'스택' 등 기술 용어의 음성 인식 오류를 문맥에 맞게 수정하여 요약하세요.
+3. **간결성**: 'description'은 2문장 내외, 'core_summary'는 최대 3개의 핵심 포인트로 작성하세요.
+
+### 예시 (Few-shot):
+입력: "이번 프로젝트 기술 스탱 정리합시다. 백앤드는 자바 스프링 버튼 사용하고 파이스와 페스트 API 구축했습니다."
+출력: {{
+    "description": "프로젝트 핵심 기술 스택으로 Java Spring Boot와 Python FastAPI 구축을 확정했습니다.",
+    "core_summary": ["Java Spring Boot 기반 백엔드 구성", "Python FastAPI를 이용한 API 서버 구축"],
+    "meeting_type": "기술 협의",
+    "topics": ["기술 스택", "백엔드", "API"],
+    "decisions": ["Spring Boot 및 FastAPI 사용"],
+    "action_items": [],
+    "pending_items": []
+}}
+
+응답 형식 (JSON):
 {{
-    "description": "회의의 전체적인 요약 설명 (2-3문장)",
-    "core_summary": [
-        "핵심 요약 포인트 1",
-        "핵심 요약 포인트 2",
-        "핵심 요약 포인트 3",
-        "핵심 요약 포인트 4"
-    ],
-    "meeting_type": "회의 유형 (예: 프로젝트 조정 회의, 브레인스토밍, 정기 회의 등)",
-    "topics": [
-        "논의된 주제 1",
-        "논의된 주제 2",
-        "논의된 주제 3"
-    ],
-    "decisions": [
-        "결정 사항 1",
-        "결정 사항 2"
-    ],
-    "action_items": [
-        "할 일 항목 1 (담당자, 기한)",
-        "할 일 항목 2 (담당자, 기한)"
-    ],
-    "pending_items": [
-        "후속 논의 필요 사항 1",
-        "후속 논의 필요 사항 2"
-    ]
+    "description": "전체 요약",
+    "core_summary": ["핵심1", "핵심2"],
+    "meeting_type": "유형",
+    "topics": ["키워드1", "키워드2"],
+    "decisions": ["결정사항"],
+    "action_items": ["할일"],
+    "pending_items": ["보류"]
 }}"""
 
         messages = [
             {"role": "user", "content": prompt}
         ]
         
-        # 토크나이즈
         input_text = self.tokenizer.apply_chat_template(
             messages,
             tokenize=False,
@@ -129,24 +137,23 @@ class MeetingSummarizer:
         )
         inputs = self.tokenizer(input_text, return_tensors="pt").to(self.device)
         
-        # 생성
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
-                max_new_tokens=1024,
-                temperature=0.7,
+                max_new_tokens=512, # 요약용으로 충분히 작게 유지
+                temperature=0.1,    # 환각 방지를 위해 매우 낮게 설정
                 top_p=0.9,
                 do_sample=True,
                 pad_token_id=self.tokenizer.eos_token_id
             )
         
-        # 디코딩
         response = self.tokenizer.decode(
             outputs[0][inputs["input_ids"].shape[1]:], 
             skip_special_tokens=True
         )
         
-        # JSON 파싱
+        print(f"[AI] 모델 응답: {response[:100]}...")
+        
         return self._parse_json_response(response)
     
     def _parse_json_response(self, response: str) -> Dict[str, Any]:
@@ -159,25 +166,71 @@ class MeetingSummarizer:
         Returns:
             파싱된 딕셔너리
         """
+        result = None
         try:
             # JSON 블록 추출 시도
             json_match = re.search(r'\{[\s\S]*\}', response)
             if json_match:
                 json_str = json_match.group()
-                return json.loads(json_str)
+                result = json.loads(json_str)
         except json.JSONDecodeError:
             pass
         
         # 파싱 실패 시 기본 구조 반환
+        if result is None:
+            return {
+                "description": response.strip(),
+                "core_summary": [],
+                "meeting_type": "알 수 없음",
+                "topics": [],
+                "decisions": [],
+                "action_items": [],
+                "pending_items": [],
+                "parse_error": "JSON 파싱 실패 - 원본 응답 반환"
+            }
+        
+        # 데이터 타입 검증 및 보정
+        return self._validate_and_normalize(result)
+    
+    def _validate_and_normalize(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        LLM 응답 데이터의 타입을 검증하고 정규화
+        """
+        def ensure_string_list(value: Any) -> List[str]:
+            """값을 문자열 리스트로 변환"""
+            if not isinstance(value, list):
+                return []
+            result = []
+            for item in value:
+                if isinstance(item, str):
+                    result.append(item)
+                elif isinstance(item, dict):
+                    # 딕셔너리인 경우 값들을 연결하거나 첫 번째 값 사용
+                    if 'topic' in item:
+                        result.append(str(item.get('topic', '')))
+                    elif 'summary' in item:
+                        result.append(str(item.get('summary', '')))
+                    elif 'content' in item:
+                        result.append(str(item.get('content', '')))
+                    else:
+                        # 첫 번째 문자열 값 사용
+                        for v in item.values():
+                            if isinstance(v, str):
+                                result.append(v)
+                                break
+                else:
+                    result.append(str(item))
+            return result
+        
         return {
-            "description": response.strip(),
-            "core_summary": [],
-            "meeting_type": "알 수 없음",
-            "topics": [],
-            "decisions": [],
-            "action_items": [],
-            "pending_items": [],
-            "parse_error": "JSON 파싱 실패 - 원본 응답 반환"
+            "description": str(data.get("description", "")).strip() or "회의 내용 요약",
+            "core_summary": ensure_string_list(data.get("core_summary", [])),
+            "meeting_type": str(data.get("meeting_type", "알 수 없음")).strip() or "알 수 없음",
+            "topics": ensure_string_list(data.get("topics", [])),
+            "decisions": ensure_string_list(data.get("decisions", [])),
+            "action_items": ensure_string_list(data.get("action_items", [])),
+            "pending_items": ensure_string_list(data.get("pending_items", [])),
+            "parse_error": None
         }
 
 

@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface RealtimeSegmentRepository extends JpaRepository<RealtimeSegment, Long> {
     List<RealtimeSegment> findByMeeting_MeetingIdOrderBySegmentSeqAsc(Integer meetingId);
+
+    void deleteByMeeting_MeetingId(Integer meetingId);
 }

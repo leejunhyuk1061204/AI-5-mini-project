@@ -2,7 +2,12 @@ package com.minipr.backend.service;
 
 import com.minipr.backend.embedding.client.EmbeddingClient;
 import com.minipr.backend.embedding.entity.Embedding;
+import com.minipr.backend.embedding.entity.FinalEmbedding;
 import com.minipr.backend.embedding.repository.EmbeddingRepository;
+import com.minipr.backend.embedding.repository.FinalEmbeddingRepository;
+import com.minipr.backend.meeting.entity.Meeting;
+import com.minipr.backend.meeting.entity.MeetingStatus;
+import com.minipr.backend.meeting.repository.MeetingRepository;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +29,8 @@ public class ChatService {
 
     private final EmbeddingClient embeddingClient;
     private final EmbeddingRepository embeddingRepository;
+    private final FinalEmbeddingRepository finalEmbeddingRepository;
+    private final MeetingRepository meetingRepository;
     private final WebClient.Builder webClientBuilder;
     private final TransactionTemplate transactionTemplate;
 
@@ -32,10 +39,14 @@ public class ChatService {
 
     public ChatService(EmbeddingClient embeddingClient,
             EmbeddingRepository embeddingRepository,
+            FinalEmbeddingRepository finalEmbeddingRepository,
+            MeetingRepository meetingRepository,
             WebClient.Builder webClientBuilder,
             PlatformTransactionManager transactionManager) {
         this.embeddingClient = embeddingClient;
         this.embeddingRepository = embeddingRepository;
+        this.finalEmbeddingRepository = finalEmbeddingRepository;
+        this.meetingRepository = meetingRepository;
         this.webClientBuilder = webClientBuilder;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
@@ -59,37 +70,76 @@ public class ChatService {
 
                     // vectorString 제거됨 - Java에서 직접 vector List 사용
 
-                    // 2. DB에서 해당 meeting의 모든 embeddings 조회 후 Java에서 유사도 계산
+                    // 2. DB에서 해당 meeting의 상태 확인 후 적절한 테이블에서 조회
                     return Mono.fromCallable(() -> {
-                        log.info("2. [Thread: {}] Fetching all embeddings for meetingId: {}",
+                        log.info("2. [Thread: {}] Checking meeting status and fetching embeddings for meetingId: {}",
                                 Thread.currentThread().getName(), request.getMeetingId());
 
                         return transactionTemplate.execute(status -> {
                             try {
-                                // 2-1. 해당 meeting의 모든 embeddings 조회
-                                List<Embedding> allEmbeddings = embeddingRepository
-                                        .findAllBySegmentMeetingId(request.getMeetingId());
+                                Meeting meeting = meetingRepository.findById(request.getMeetingId())
+                                        .orElseThrow(() -> new RuntimeException("Meeting not found"));
 
-                                log.info("3. Fetched {} embeddings, calculating distances in Java",
-                                        allEmbeddings.size());
+                                List<String> contextSegments;
 
-                                if (allEmbeddings.isEmpty()) {
-                                    log.warn("No embeddings found for meetingId: {}", request.getMeetingId());
-                                    return List.<String>of();
+                                if (Boolean.TRUE.equals(request.getSearchAll()) && request.getMemberId() != null) {
+                                    log.info(
+                                            "Global Search enabled for memberId: {}. Fetching all finalized embeddings.",
+                                            request.getMemberId());
+                                    List<FinalEmbedding> allEmbeddings = finalEmbeddingRepository
+                                            .findAllByFinalSegment_Meeting_Member_MemberId(request.getMemberId());
+
+                                    contextSegments = allEmbeddings.stream()
+                                            .filter(e -> e.getFinalSegment() != null && e.getEmbedding() != null)
+                                            .sorted(java.util.Comparator.comparingDouble(
+                                                    (FinalEmbedding e) -> cosineSimilarity(vector,
+                                                            parseVectorString(e.getEmbedding())))
+                                                    .reversed())
+                                            .limit(10) // Global search might need more context
+                                            .map(e -> "[" + e.getFinalSegment().getMeeting().getTitle() + "] "
+                                                    + e.getFinalSegment().getChunkText())
+                                            .collect(Collectors.toList());
+                                } else if (meeting.getStatus() == MeetingStatus.COMPLETED) {
+                                    log.info("Meeting is COMPLETED. Using final_embeddings table.");
+                                    List<FinalEmbedding> allEmbeddings = finalEmbeddingRepository
+                                            .findAllByFinalSegment_Meeting_MeetingId(request.getMeetingId());
+
+                                    contextSegments = allEmbeddings.stream()
+                                            .filter(e -> e.getFinalSegment() != null && e.getEmbedding() != null)
+                                            .sorted(java.util.Comparator.comparingDouble(
+                                                    (FinalEmbedding e) -> cosineSimilarity(vector,
+                                                            parseVectorString(e.getEmbedding())))
+                                                    .reversed())
+                                            .limit(5)
+                                            .map(e -> e.getFinalSegment().getChunkText())
+                                            .collect(Collectors.toList());
+                                } else if (meeting.getStatus() == MeetingStatus.PROCEEDING
+                                        || meeting.getStatus() == MeetingStatus.RECORDED) {
+                                    log.info("Meeting is in {} status. Using real-time embeddings table.",
+                                            meeting.getStatus());
+                                    List<Embedding> allEmbeddings = embeddingRepository
+                                            .findAllBySegmentMeetingId(request.getMeetingId());
+
+                                    contextSegments = allEmbeddings.stream()
+                                            .filter(e -> e.getSegment() != null && e.getEmbedding() != null)
+                                            .sorted(java.util.Comparator.comparingDouble(
+                                                    (Embedding e) -> cosineSimilarity(vector,
+                                                            parseVectorString(e.getEmbedding())))
+                                                    .reversed())
+                                            .limit(5)
+                                            .map(e -> e.getSegment().getChunkText())
+                                            .collect(Collectors.toList());
+                                } else {
+                                    // ANALYZING or FAILED - use real-time as fallback if needed or return empty
+                                    log.info("Meeting is in {} status. No final result yet.", meeting.getStatus());
+                                    contextSegments = List.of();
                                 }
 
-                                // 2-2. Java에서 코사인 유사도 계산 후 상위 5개 선택 (유사도 높은 순)
-                                return allEmbeddings.stream()
-                                        .filter(e -> e.getSegment() != null && e.getEmbedding() != null)
-                                        .sorted(java.util.Comparator.comparingDouble(
-                                                (Embedding e) -> cosineSimilarity(vector,
-                                                        parseVectorString(e.getEmbedding())))
-                                                .reversed())
-                                        .limit(5)
-                                        .map(e -> e.getSegment().getChunkText())
-                                        .collect(Collectors.toList());
+                                log.info("3. Found {} valid segments for context", contextSegments.size());
+                                return contextSegments;
+
                             } catch (Exception e) {
-                                log.error("Error during Java Vector Search: {}", e.getMessage(), e);
+                                log.error("Error during Dynamic Vector Search: {}", e.getMessage(), e);
                                 throw new RuntimeException("Vector Search failed", e);
                             }
                         });
@@ -186,6 +236,8 @@ public class ChatService {
     @Data
     public static class ChatRequest {
         private Integer meetingId;
+        private Integer memberId;
+        private Boolean searchAll;
         private String message;
 
         @com.fasterxml.jackson.annotation.JsonProperty("session_id")

@@ -18,16 +18,15 @@ public class EmbeddingClient {
 
     private final WebClient webClient;
 
-    public EmbeddingClient(@Value("${python.ai.url:http://localhost:8001}") String aiServerUrl) {
-        log.info("EmbeddingClient initialized with baseUrl: {}", aiServerUrl);
+    public EmbeddingClient(
+            @Value("${python.ai.url:http://localhost:8001}") String aiServerUrl,
+            @Value("${python.ai.timeout-seconds:60}") int timeoutSeconds) {
+        log.info("EmbeddingClient initialized with baseUrl: {}, timeout: {}s", aiServerUrl, timeoutSeconds);
         this.webClient = WebClient.builder()
                 .baseUrl(aiServerUrl)
                 .clientConnector(new org.springframework.http.client.reactive.ReactorClientHttpConnector(
-                        io.netty.channel.nio.NioEventLoopGroup.class.isAnonymousClass() ? null : // Dummy check to avoid
-                                                                                                 // import issues if
-                                                                                                 // needed
-                                reactor.netty.http.client.HttpClient.create()
-                                        .responseTimeout(java.time.Duration.ofSeconds(10))))
+                        reactor.netty.http.client.HttpClient.create()
+                                .responseTimeout(java.time.Duration.ofSeconds(timeoutSeconds))))
                 .build();
     }
 
