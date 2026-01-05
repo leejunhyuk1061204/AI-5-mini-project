@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { API_URL } from '../config';
 import MeetingResultDisplay from '../components/MeetingResultDisplay';
 import { parseSummaryMarkdown } from '../utils/meetingUtils';
 import { useMeetingContext } from '../context/MeetingContext';
@@ -31,7 +32,7 @@ const HistoryPage: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const response = await fetch(`/api/meetings?memberId=${memberId}`);
+            const response = await fetch(`${API_URL}/meetings?memberId=${memberId}`);
             if (!response.ok) throw new Error('Failed to fetch meetings');
             const data = await response.json();
             // Sort by creation date descending
@@ -62,7 +63,7 @@ const HistoryPage: React.FC = () => {
         if (!window.confirm('정말 이 회의록을 삭제하시겠습니까?')) return;
 
         try {
-            const response = await fetch(`/api/meetings/${meetingId}`, {
+            const response = await fetch(`${API_URL}/meetings/${meetingId}`, {
                 method: 'DELETE'
             });
             if (!response.ok) throw new Error('Failed to delete meeting');
