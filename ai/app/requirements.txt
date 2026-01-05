@@ -1,0 +1,28 @@
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+# Web Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-dotenv>=1.0.0
+python-multipart>=0.0.9
+
+# Machine Learning Core (PyTorch via CUDA 12.4)
+# CUDA 12.6 driver matches well with PyTorch's CUDA 12.4 builds
+torch>=2.5.1
+torchaudio>=2.5.1
+torchvision>=0.20.1
+
+# Audio Processing (STT & Diarization)
+faster-whisper>=1.0.3
+pyannote.audio>=3.1.1
+soundfile>=0.12.1
+# av is pyav, needed for some audio conversions
+av>=12.0.0
+numpy>=1.26.0
+scipy>=1.13.0
+
+# LLM & Embeddings
+transformers>=4.46.0
+accelerate>=1.0.0
+sentence-transformers>=3.2.0
+protobuf>=5.28.0
