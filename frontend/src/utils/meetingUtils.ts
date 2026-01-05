@@ -18,26 +18,52 @@ export function parseSummaryMarkdown(summary: string, fullText: string): SttResu
     if (!summary) return result;
 
     // --- [추가] 1. JSON 형식인 경우 처리 ---
-    if (summary.trim().includes('{') && (summary.includes('"description"') || summary.includes('```json'))) {
+    // --- [추가] 1. JSON 형식인 경우 처리 ---
+    // Case A: 마크다운 코드 블록(```json ... ```)이 포함된 경우 추출해서 파싱
+    const jsonBlockMatch = summary.match(/```json([\s\S]*?)```/);
+    if (jsonBlockMatch) {
         try {
-            // 마크다운 백틱(```json ... ```) 제거
-            const cleanJson = summary.replace(/```json|```/g, '').trim();
-            const parsed = JSON.parse(cleanJson);
-
-            return {
-                description: parsed.description || '',
-                core_summary: parsed.core_summary || [],
-                meeting_type: parsed.meeting_type || '',
-                topics: parsed.topics || [],
-                decisions: parsed.decisions || [],
-                action_items: parsed.action_items || [],
-                pending_items: parsed.pending_items || [],
-                fullText: fullText
-            };
+            const jsonStr = jsonBlockMatch[1].trim();
+            const parsed = JSON.parse(jsonStr);
+            return mapParsedToResult(parsed, fullText);
         } catch (e) {
-            console.error("JSON 파싱 시도 실패, 마크다운 파싱으로 전환합니다.", e);
-            // 실패 시 아래의 기존 마크다운 파싱 로직으로 넘어감
+            console.warn("Found JSON block but failed to parse. Attempting repair...", e);
+            try {
+                // Common error: missing opening quote in string list: ["A", B"] -> ["A", "B"]
+                // Regex: comma, optional space, capture text (not starting with " { [ digit - n), ending with quote
+                const repaired = jsonBlockMatch[1].replace(/,\s*([^"{\[\s\d\-ntf][^:\]]*?)"/g, ', "$1"');
+                const parsed = JSON.parse(repaired);
+                console.log("JSON Repaired successfully!");
+                return mapParsedToResult(parsed, fullText);
+            } catch (e2) {
+                console.warn("Repair failed:", e2);
+            }
         }
+    }
+
+    // Case B: 전체가 순수 JSON인 경우 ({로 시작)
+    const trimmedSummary = summary.trim();
+    if (trimmedSummary.startsWith('{')) {
+        try {
+            const parsed = JSON.parse(trimmedSummary);
+            return mapParsedToResult(parsed, fullText);
+        } catch (e) {
+            console.warn("Looks like JSON but failed to parse, falling back to Markdown parser.", e);
+        }
+    }
+
+    // Helper function to map parsed JSON object to SttResultData
+    function mapParsedToResult(parsed: any, text: string): SttResultData {
+        return {
+            description: parsed.description || '',
+            core_summary: parsed.core_summary || [],
+            meeting_type: parsed.meeting_type || '',
+            topics: parsed.topics || [],
+            decisions: parsed.decisions || [],
+            action_items: parsed.action_items || [],
+            pending_items: parsed.pending_items || [],
+            fullText: text
+        };
     }
 
     // --- 2. 기존 마크다운 파싱 로직 (유지) ---

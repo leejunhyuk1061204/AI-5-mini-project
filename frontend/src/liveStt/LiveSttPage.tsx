@@ -108,6 +108,10 @@ const LiveSttPage: React.FC = () => {
 
     // Auto-save temp data
     useEffect(() => {
+        if (transcripts.length === 0 && !summary) {
+            localStorage.removeItem('live_stt_temp');
+            return;
+        }
         const dataToSave = {
             transcripts,
             summary
@@ -415,19 +419,28 @@ const LiveSttPage: React.FC = () => {
         }
     };
 
-    // Clear transcript and meeting from DB
     const handleClear = async () => {
         if (isListening) {
             alert('녹음 중에는 삭제할 수 없습니다. 먼저 녹음을 중지해주세요.');
             return;
         }
-        if (!lastMeetingId) {
+
+        const hasContent = transcripts.length > 0 || summary || interimTranscript;
+        if (!lastMeetingId && !hasContent) {
             alert('삭제할 기록이 없습니다.');
             return;
         }
-        if (!window.confirm('정말로 기록을 삭제하시겠습니까? 데이터베이스에서도 영구 삭제됩니다.')) return;
+
+        const confirmMsg = lastMeetingId
+            ? '정말로 기록을 삭제하시겠습니까? 데이터베이스에서도 영구 삭제됩니다.'
+            : '화면에 표시된 내용을 삭제하시겠습니까?';
+
+        if (!window.confirm(confirmMsg)) return;
 
         try {
+            // Remove local storage explicitly
+            localStorage.removeItem('live_stt_temp');
+
             if (lastMeetingId) {
                 await fetch(`/api/meetings/${lastMeetingId}`, { method: 'DELETE' });
             }
@@ -435,7 +448,7 @@ const LiveSttPage: React.FC = () => {
             setTranscripts([]);
             setInterimTranscript('');
             setSummary(null);
-            setLastMeetingId(0);
+            setLastMeetingId(null);
             setCurrentMeetingId(null);
 
             // Clear meetingId from URL
