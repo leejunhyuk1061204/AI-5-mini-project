@@ -1,10 +1,24 @@
 const concurrently = require('concurrently');
-const path = require('path');
+const { execSync } = require('child_process');
 
 const isWin = process.platform === 'win32';
 
 console.log(`🚀 Starting Development Server...`);
 console.log(`Detected OS: ${isWin ? 'Windows' : 'macOS/Linux'}`);
+
+// 1. Cleanup existing ports (Mac/Linux only for now)
+if (!isWin) {
+    try {
+        console.log('🧹 Cleaning up ports 8001 (AI) and 8080 (Backend)...');
+        // lsof -t -i:8001 -i:8080 outputs PIDs. xargs kill -9 kills them.
+        // 2>/dev/null to silence errors if no process is found.
+        execSync('lsof -t -i:8001 -i:8080 | xargs kill -9 2>/dev/null');
+        console.log('✅ Ports cleaned successfully.');
+    } catch (e) {
+        // Ignored: likely no processes running
+        console.log('✅ No zombie processes found on target ports.');
+    }
+}
 
 // Define commands based on OS
 const backendCmd = isWin
@@ -34,6 +48,5 @@ result.then(
     () => console.log('All processes finished successfully'),
     (err) => {
         console.error('Error occurred in one of the processes');
-        // process.exit(1); // Optional: let user see output
     }
 );
