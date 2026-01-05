@@ -12,7 +12,7 @@ const Login: React.FC = () => {
         setError(null);
 
         try {
-            const res = await fetch('/api/members/login', {
+            const res = await fetch(import.meta.env.VITE_API_URL + '/api/members/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
