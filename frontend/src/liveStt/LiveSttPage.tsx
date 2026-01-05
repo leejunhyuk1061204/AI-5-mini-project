@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import Sidebar from '../sidebar/Sidebar';
-import type { HistoryItem } from '../types';
+
 import { useMeetingContext } from '../context/MeetingContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -95,18 +94,7 @@ const LiveSttPage: React.FC = () => {
         meetingIdParam ? Number(meetingIdParam) : null
     );
 
-    // History State
-    const [history, setHistory] = useState<HistoryItem[]>(() => {
-        try {
-            const saved = localStorage.getItem('live_stt_history');
-            return saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            console.error('Failed to load history', e);
-            return [];
-        }
-    });
 
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const [summary, setSummary] = useState<string | null>(tempData?.summary || null);
     const [isSummarizing, setIsSummarizing] = useState(false);
@@ -127,16 +115,7 @@ const LiveSttPage: React.FC = () => {
         localStorage.setItem('live_stt_temp', JSON.stringify(dataToSave));
     }, [transcripts, summary]);
 
-    // Save history to local storage whenever it changes
-    useEffect(() => {
-        localStorage.setItem('live_stt_history', JSON.stringify(history));
-    }, [history]);
 
-    const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
-    const handleSelectHistory = useCallback((id: string) => {
-        setSelectedHistoryId(id);
-        // In a real app, this might navigate or show history in a modal
-    }, []);
 
     useEffect(() => {
         if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
@@ -544,24 +523,11 @@ const LiveSttPage: React.FC = () => {
         }
     };
 
-    const handleDeleteHistory = (id: string) => {
-        setHistory(prev => prev.filter(item => item.id !== id));
-        if (selectedHistoryId === id) {
-            setSelectedHistoryId(null);
-        }
-    };
+
 
     return (
         <div className="relative flex h-full w-full flex-row overflow-hidden bg-[#f6f6f8] font-['Inter',sans-serif] text-[#0d121b] antialiased">
-            {/* Reuse Sidebar for consistency */}
-            <Sidebar
-                history={history}
-                onSelectHistory={handleSelectHistory}
-                onDelete={handleDeleteHistory}
-                currentHistoryId={selectedHistoryId}
-                isOpen={isSidebarOpen}
-                onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-            />
+            {/* Sidebar removed */}
 
             <main className="flex-1 flex flex-col h-full overflow-hidden relative transition-all duration-300">
                 {/* Connection Toast Notification */}
@@ -578,14 +544,7 @@ const LiveSttPage: React.FC = () => {
                     {/* Header */}
                     <div className="flex flex-col items-start gap-4 mb-4 md:flex-row md:justify-between md:items-center">
                         <div className="flex items-center gap-4">
-                            {/* Mobile Sidebar Toggle */}
-                            <button
-                                onClick={() => setIsSidebarOpen(true)}
-                                className="p-2 -ml-2 rounded-lg hover:bg-[#e7ebf0] text-[#444746] transition-colors"
-                                title="사이드바 열기"
-                            >
-                                <span className="material-symbols-outlined text-[24px]">menu</span>
-                            </button>
+
 
                             <div>
                                 <h1 className="text-[#0d121b] text-2xl md:text-3xl font-black tracking-tight mb-1 md:mb-2">실시간 회의록</h1>
@@ -624,7 +583,7 @@ const LiveSttPage: React.FC = () => {
                             <button
                                 onClick={handleClear}
                                 disabled={isSummarizing}
-                                className="px-3 py-2 md:px-4 text-sm font-semibold text-[#4c669a] hover:bg-[#e7ebf3] disabled:opacity-50 rounded-lg transition-colors border border-transparent hover:border-[#cfd7e7] whitespace-nowrap shrink-0"
+                                className="px-3 py-2 md:px-4 text-sm font-bold text-[#444746] bg-white hover:bg-gray-50 border border-[#c4c7c5] rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:bg-gray-100 whitespace-nowrap shrink-0"
                             >
                                 지우기
                             </button>
