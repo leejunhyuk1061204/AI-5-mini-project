@@ -15,6 +15,7 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
                 // .allowedOrigins(allowedOrigins.split(",")) // 기존 설정 제거
+
                 .allowedOriginPatterns(
                         "http://localhost:3000",
                         "http://localhost:5173",
@@ -22,6 +23,7 @@ public class CorsConfig implements WebMvcConfigurer {
                         "https://*.ngrok-free.dev", // ngrok 도메인
                         "https://*.ngrok.io" // ngrok 구버전 도메인
                 ) // 명시적 허용
+
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .exposedHeaders("*")

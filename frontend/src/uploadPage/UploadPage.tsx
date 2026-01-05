@@ -19,6 +19,7 @@ const UploadPage: React.FC = () => {
             const memberId = localStorage.getItem('memberId');
             if (!memberId) return []; // 비로그인 시 히스토리 보여주지 않음
 
+
             const saved = localStorage.getItem('stt_history');
             return saved ? JSON.parse(saved) : [];
         } catch (e) {
@@ -33,6 +34,7 @@ const UploadPage: React.FC = () => {
         if (memberId) {
             localStorage.setItem('stt_history', JSON.stringify(history));
         }
+
     }, [history]);
 
     const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);

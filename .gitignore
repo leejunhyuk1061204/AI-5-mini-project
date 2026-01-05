@@ -20,9 +20,7 @@ env/
 _conda/
 ai/_conda/
 
-# =========================
 # Conda
-# =========================
 conda-meta/
 *.conda
 *.lock
@@ -66,9 +64,16 @@ uploads/
 *.webm
 
 # =========================
+# AI Models (Large Files)
+# =========================
+*.gguf
+ai/app/models/gguf/
+
+# =========================
 # IDE / Editor
 # =========================
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 .idea/
 *.iws
 *.iml
@@ -77,14 +82,12 @@ out/
 bin/
 
 # =========================
-# Java / Spring
+# Java / Spring / Gradle
 # =========================
 .gradle/
 build/
 !**/src/main/**/build/
 !**/src/test/**/build/
-
-# STS / Eclipse
 .apt_generated
 .classpath
 .factorypath
@@ -93,15 +96,7 @@ build/
 .springBeans
 .sts4-cache
 
-# =========================
-# VS Code (workspace 설정 제외하고 전부 무시)
-# =========================
-.vscode/*
-!.vscode/extensions.json
-
-# =========================
 # Local Spring Config
-# =========================
 **/application-local.properties
 
 # =========================

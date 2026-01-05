@@ -61,12 +61,14 @@ class LoggerWriter:
 sys.stdout = LoggerWriter(logger, sys.stdout)
 sys.stderr = LoggerWriter(logger, sys.stderr)
 
+
 # [Av] libav(FFmpeg) 로깅 레벨 조정 (오디오 청크 연결 시 발생하는 benign 에러 숨김)
 try:
     import av
     av.logging.set_level(av.logging.CRITICAL)
 except ImportError:
     pass
+
 
 async def lifespan(app: FastAPI):
     # Startup

@@ -84,6 +84,7 @@ const Header: React.FC = () => {
                             </button>
                         </div>
                     ) : (
+
                         <div className="flex items-center gap-2">
                             <Link
                                 to="/login"
@@ -99,6 +100,7 @@ const Header: React.FC = () => {
                                 회원가입
                             </Link>
                         </div>
+
                     )}
                 </div>
             </div>

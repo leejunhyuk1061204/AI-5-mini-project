@@ -1,7 +1,10 @@
 import type { SttResultData } from '../types';
 
 /**
- * Summary 마크다운 또는 JSON을 파싱해서 SttResultData로 변환
+
+ * AI가 생성한 요약 데이터(JSON 또는 마크다운)를 파싱하여 SttResultData로 변환합니다.
+ * 특정 노이즈 패턴 대신 범용적인 데이터 정제 로직을 사용합니다.
+
  */
 export function parseSummaryMarkdown(summary: string, fullText: string): SttResultData {
     const result: SttResultData = {
@@ -16,6 +19,7 @@ export function parseSummaryMarkdown(summary: string, fullText: string): SttResu
     };
 
     if (!summary) return result;
+
 
     // --- [추가] 1. JSON 형식인 경우 처리 ---
     // --- [추가] 1. JSON 형식인 경우 처리 ---
@@ -67,11 +71,13 @@ export function parseSummaryMarkdown(summary: string, fullText: string): SttResu
     }
 
     // --- 2. 기존 마크다운 파싱 로직 (유지) ---
+
     const lines = summary.split('\n');
     let currentSection = '';
 
     for (const line of lines) {
         const trimmed = line.trim();
+
 
         if (trimmed.startsWith('### 📝 회의 요약')) {
             currentSection = 'description';
@@ -81,6 +87,7 @@ export function parseSummaryMarkdown(summary: string, fullText: string): SttResu
             continue;
         } else if (trimmed.startsWith('#### 🏷️ 회의 유형:')) {
             result.meeting_type = trimmed.replace('#### 🏷️ 회의 유형:', '').trim();
+
             currentSection = '';
             continue;
         } else if (trimmed.startsWith('#### 💬 논의 주제')) {
@@ -97,15 +104,25 @@ export function parseSummaryMarkdown(summary: string, fullText: string): SttResu
             continue;
         }
 
-        if (trimmed.startsWith('- ')) {
-            const item = trimmed.substring(2).trim();
+
+        // 마운트 시 JSON 블록이나 코드 블록 기호(```)는 건너뜁니다.
+        if (trimmed.startsWith('```') || trimmed === '{' || trimmed === '}') continue;
+
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+            const item = cleanText(trimmed.substring(2));
+            if (!item) continue;
             if (currentSection === 'core_summary') result.core_summary.push(item);
             else if (currentSection === 'topics') result.topics.push(item);
             else if (currentSection === 'decisions') result.decisions.push(item);
             else if (currentSection === 'action_items') result.action_items.push(item);
             else if (currentSection === 'pending_items') result.pending_items.push(item);
         } else if (currentSection === 'description' && trimmed && !trimmed.startsWith('#')) {
-            result.description += (result.description ? ' ' : '') + trimmed;
+
+            const cleanedLine = cleanText(trimmed);
+            if (cleanedLine) {
+                // 이전 문장과 합칠 때 공백 추가
+                result.description += (result.description ? ' ' : '') + cleanedLine;
+            }
         }
     }
 

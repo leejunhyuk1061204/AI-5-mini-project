@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { API_URL } from '../config';
 
+
 const Login: React.FC = () => {
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
@@ -18,6 +19,7 @@ const Login: React.FC = () => {
                 headers: {
                     'Content-Type': 'application/json',
                     'ngrok-skip-browser-warning': 'true',
+
                 },
                 body: JSON.stringify({ email, password }),
             });
