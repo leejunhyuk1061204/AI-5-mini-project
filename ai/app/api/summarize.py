@@ -1,15 +1,19 @@
 """
-
-회의록 요약 모듈 - Qwen3-1.7B-GGUF 모델 사용
+회의록 요약 모듈 - Qwen3-0.6B 경량 모델 사용 (속도 우선)
 구조화된 JSON 형식의 회의록 생성
+자세한 요약은 챗봇(Qwen3-1.7B)에서 처리
 """
 from fastapi import APIRouter
 from pydantic import BaseModel
 import json
 import re
 import logging
+import httpx
 from typing import Dict, Any, List, Optional
-from app.utils.model_loader import get_llm
+
+# 요약 전용 경량 모델 설정
+SUMMARY_OLLAMA_BASE_URL = "http://localhost:11434"
+SUMMARY_OLLAMA_MODEL = "qwen3:0.6b"  # 속도 우선 경량 모델
 
 
 # FastAPI 라우터 설정
@@ -57,26 +61,26 @@ async def summarize_text(request: SummarizeRequest):
 
 class MeetingSummarizer:
 
-    """GGUF 모델을 사용한 회의록 요약 클래스"""
+    """경량 모델(Qwen3-0.6B)을 사용한 간단 요약 클래스 - 속도 우선"""
     
-    def __init__(self, model_name: str = "ggml-org/Qwen3-1.7B-GGUF"):
+    def __init__(self, model_name: str = SUMMARY_OLLAMA_MODEL):
         """
         요약 모델 초기화
         """
-        # 모델은 model_loader에서 관리함
+        self.model = model_name
+        self.base_url = SUMMARY_OLLAMA_BASE_URL
+        self.client = httpx.Client(timeout=60.0)  # 경량 모델이므로 타임아웃 단축
         logger = logging.getLogger(__name__)
-        logger.info("[MeetingSummarizer] Initialized with Qwen3-1.7B-GGUF (llama-cpp)")
+        logger.info(f"[MeetingSummarizer] Initialized with {model_name} (경량 모델 - 속도 우선)")
 
-        
     def summarize(self, text: str) -> Dict[str, Any]:
         """
-        회의 내용을 구조화된 JSON 형식으로 요약
+        회의 내용을 구조화된 JSON 형식으로 간단 요약 (속도 우선)
         """
-        print(f"\n[AI] 요약 요청 수신 (텍스트 길이: {len(text)})")
-
-        print(f"[AI] Ollama API 사용 (qwen3:1.7b)")
-
-        print(f"[AI] 입력 텍스트 미리보기: {text[:200]}...")
+        logger = logging.getLogger(__name__)
+        logger.info(f"[AI] 요약 요청 수신 (텍스트 길이: {len(text)})")
+        logger.info(f"[AI] Ollama API 사용 ({self.model}) - 경량 모델")
+        logger.info(f"[AI] 입력 텍스트 미리보기: {text[:200]}...")
 
         # 텍스트가 너무 짧거나 무의미한 경우 처리
         if not text or len(text.strip()) < 10:
@@ -126,23 +130,33 @@ class MeetingSummarizer:
         messages = [
             {"role": "user", "content": prompt}
         ]
-        
 
-        llm = get_llm()
+        # 경량 모델 직접 Ollama API 호출
+        try:
+            response = self.client.post(
+                f"{self.base_url}/api/chat",
+                json={
+                    "model": self.model,
+                    "messages": messages,
+                    "stream": False,
+                    "options": {
+                        "num_predict": 1024,
+                        "temperature": 0.3,
+                        "top_p": 0.9,
+                    }
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
+            response_text = data.get("message", {}).get("content", "")
+        except httpx.ConnectError:
+            logger.error("[MeetingSummarizer] Ollama 서버에 연결할 수 없습니다.")
+            raise RuntimeError("Ollama 서버가 실행 중이 아닙니다. 'ollama serve' 명령으로 시작하세요.")
+        except Exception as e:
+            logger.error(f"[MeetingSummarizer] API 호출 실패: {str(e)}")
+            raise
         
-        # llama-cpp-python의 create_chat_completion 사용
-        response = llm.create_chat_completion(
-            messages=messages,
-            max_tokens=1024,
-            temperature=0.3,
-            top_p=0.9,
-            repeat_penalty=1.2,
-            stream=False
-        )
-        
-        response_text = response["choices"][0]["message"]["content"]
-        
-        print(f"[AI] 모델 응답: {response_text[:100]}...")
+        logger.info(f"[AI] 모델 응답: {response_text[:100]}...")
         
         return self._parse_json_response(response_text)
 
@@ -259,9 +273,7 @@ if __name__ == "__main__":
     print("\n" + "="*50)
     
     # 요약 실행
-
-    print("\nQwen3-1.7B-GGUF 모델 로딩 중...")
-
+    print(f"\nQwen3-0.6B 경량 모델 로딩 중... (속도 우선)")
     summarizer = MeetingSummarizer()
     
     print("회의록 요약 생성 중...")

@@ -1,11 +1,22 @@
 import type { SttResultData } from '../types';
 
 /**
-
  * AI가 생성한 요약 데이터(JSON 또는 마크다운)를 파싱하여 SttResultData로 변환합니다.
  * 특정 노이즈 패턴 대신 범용적인 데이터 정제 로직을 사용합니다.
-
  */
+
+/**
+ * 텍스트 정제 헬퍼 함수 - 불필요한 공백, 특수문자 제거
+ */
+function cleanText(text: string): string {
+    if (!text) return '';
+    return text
+        .replace(/^\s+|\s+$/g, '')  // trim
+        .replace(/\s+/g, ' ')        // 다중 공백 제거
+        .replace(/^[-*•]\s*/, '')    // 리스트 마커 제거
+        .trim();
+}
+
 export function parseSummaryMarkdown(summary: string, fullText: string): SttResultData {
     const result: SttResultData = {
         description: '',
@@ -21,8 +32,7 @@ export function parseSummaryMarkdown(summary: string, fullText: string): SttResu
     if (!summary) return result;
 
 
-    // --- [추가] 1. JSON 형식인 경우 처리 ---
-    // --- [추가] 1. JSON 형식인 경우 처리 ---
+    // --- 1. JSON 형식인 경우 처리 ---
     // Case A: 마크다운 코드 블록(```json ... ```)이 포함된 경우 추출해서 파싱
     const jsonBlockMatch = summary.match(/```json([\s\S]*?)```/);
     if (jsonBlockMatch) {

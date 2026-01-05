@@ -47,7 +47,6 @@ class ChatResponse(BaseModel):
 # ─────────────────────────────────────────────────────────────
 
 class ChatModel:
-
     """GGUF 모델을 사용하는 챗봇 래퍼"""
 
     _instance = None
@@ -86,7 +85,6 @@ class ChatModel:
         # 사고 과정(<think>...</think>) 제거 (프론트 디자인에 따라 유지할 수도 있지만 현재는 제거)
         reply = re.sub(r'<(think|thought)>.*?(</\1>|$)', '', reply, flags=re.DOTALL | re.IGNORECASE)
         return reply.strip()
-
 
 
 # 모델 인스턴스 (서버 시작 시 한 번만 로드)

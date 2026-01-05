@@ -4,7 +4,6 @@ import MeetingResultDisplay from '../../components/MeetingResultDisplay';
 import { parseSummaryMarkdown } from '../../utils/meetingUtils';
 import { API_URL } from '../../config';
 
-
 interface SttConversionProps {
     fileName: string;
     file?: File | null; // 실제 업로드할 파일
@@ -51,9 +50,6 @@ const SttConversion: React.FC<SttConversionProps> = ({
 
                 const response = await fetch(`${API_URL}/meetings/upload`, {
                     method: 'POST',
-                    headers: {
-                        'ngrok-skip-browser-warning': 'true',
-                    },
                     body: formData
                 });
 
@@ -67,10 +63,6 @@ const SttConversion: React.FC<SttConversionProps> = ({
 
                 const apiResponse: { data: MeetingUploadResponse } = await response.json();
                 const meeting = apiResponse.data;
-
-
-                // [추가] 서버에서 온 원본 summary 확인용 로그
-                console.log("원본 summary:", meeting.summary);
 
                 // Parse summary markdown into structured data
                 const parsedResult = parseSummaryMarkdown(meeting.summary, meeting.fullText);

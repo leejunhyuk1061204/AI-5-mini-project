@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { API_URL } from '../config';
 
-
 const SignUp: React.FC = () => {
     const navigate = useNavigate();
     const [name, setName] = useState('');
@@ -46,7 +45,6 @@ const SignUp: React.FC = () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'ngrok-skip-browser-warning': 'true',
                 },
                 body: JSON.stringify({
                     name,

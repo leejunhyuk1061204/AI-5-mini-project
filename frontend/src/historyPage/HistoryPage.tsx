@@ -21,7 +21,6 @@ const HistoryPage: React.FC = () => {
     const [parsedResult, setParsedResult] = useState<SttResultData | null>(null);
     const { setCurrentMeetingId } = useMeetingContext();
 
-
     const memberId = localStorage.getItem('memberId');
 
     const fetchMeetings = useCallback(async () => {
@@ -36,7 +35,6 @@ const HistoryPage: React.FC = () => {
             const response = await fetch(`${API_URL}/meetings?memberId=${memberId}`, {
                 headers: { 'ngrok-skip-browser-warning': 'true' }
             });
-
             if (!response.ok) throw new Error('Failed to fetch meetings');
             const data = await response.json();
             // Sort by creation date descending
@@ -67,11 +65,8 @@ const HistoryPage: React.FC = () => {
         if (!window.confirm('정말 이 회의록을 삭제하시겠습니까?')) return;
 
         try {
-
             const response = await fetch(`${API_URL}/meetings/${meetingId}`, {
                 method: 'DELETE',
-                headers: { 'ngrok-skip-browser-warning': 'true' }
-
             });
             if (!response.ok) throw new Error('Failed to delete meeting');
 

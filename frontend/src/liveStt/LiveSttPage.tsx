@@ -82,8 +82,6 @@ const LiveSttPage: React.FC = () => {
 
     // WebSocket for real-time audio streaming
     const wsRef = useRef<WebSocket | null>(null);
-
-    const JAVA_WS_URL = import.meta.env.VITE_JAVA_WS_URL || 'ws://localhost:8080';
     // JAVA_WS_URL is imported from config
 
 
@@ -377,7 +375,6 @@ const LiveSttPage: React.FC = () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'ngrok-skip-browser-warning': 'true'
                 },
 
                 body: JSON.stringify({ memberId, title })
@@ -461,7 +458,6 @@ const LiveSttPage: React.FC = () => {
             if (lastMeetingId) {
                 await fetch(`${API_URL}/meetings/${lastMeetingId}`, {
                     method: 'DELETE',
-                    headers: { 'ngrok-skip-browser-warning': 'true' }
                 });
 
             }
@@ -469,7 +465,7 @@ const LiveSttPage: React.FC = () => {
             setTranscripts([]);
             setInterimTranscript('');
             setSummary(null);
-            setLastMeetingId(0);
+            setLastMeetingId(null);
             setCurrentMeetingId(null);
 
             // Clear meetingId from URL
@@ -500,7 +496,6 @@ const LiveSttPage: React.FC = () => {
 
             await fetch(`${API_URL}/meetings/${lastMeetingId}/retry`, {
                 method: 'POST',
-                headers: { 'ngrok-skip-browser-warning': 'true' }
             });
 
 
@@ -511,8 +506,7 @@ const LiveSttPage: React.FC = () => {
             setTranscripts([]);
             setInterimTranscript('');
             setSummary(null);
-            setSummary(null);
-            setLastMeetingId(0);
+            setLastMeetingId(null);
             setCurrentMeetingId(null);
 
             const url = new URL(window.location.href);
@@ -544,12 +538,14 @@ const LiveSttPage: React.FC = () => {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 90000);
 
-            
+
             // retry API를 사용하여 수동 분석 트리거
             const response = await fetch(`${API_URL}/meetings/${lastMeetingId}/fast-summary`, {
                 method: 'POST',
-                headers: { 'ngrok-skip-browser-warning': 'true' }
+                signal: controller.signal
             });
+
+            clearTimeout(timeoutId);
 
             if (!response.ok) throw new Error('분석 요청에 실패했습니다.');
 
