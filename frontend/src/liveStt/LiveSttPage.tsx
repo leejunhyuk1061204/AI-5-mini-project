@@ -369,7 +369,10 @@ const LiveSttPage: React.FC = () => {
 
             const res = await fetch(`${API_URL}/meetings`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
+                },
                 body: JSON.stringify({ memberId, title })
             });
 
@@ -444,7 +447,10 @@ const LiveSttPage: React.FC = () => {
             localStorage.removeItem('live_stt_temp');
 
             if (lastMeetingId) {
-                await fetch(`${API_URL}/meetings/${lastMeetingId}`, { method: 'DELETE' });
+                await fetch(`${API_URL}/meetings/${lastMeetingId}`, {
+                    method: 'DELETE',
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
             }
             // Reset all states
             setTranscripts([]);
@@ -478,7 +484,10 @@ const LiveSttPage: React.FC = () => {
         setIsSummarizing(true);
         try {
             // 분석이 안 되어 있을 수 있으므로 retry API 호출 (Background)
-            await fetch(`${API_URL}/meetings/${lastMeetingId}/retry`, { method: 'POST' });
+            await fetch(`${API_URL}/meetings/${lastMeetingId}/retry`, {
+                method: 'POST',
+                headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
 
             alert('회의록이 저장되었습니다. 히스토리에서 확인하실 수 있습니다.');
             navigate('/history');
@@ -518,6 +527,7 @@ const LiveSttPage: React.FC = () => {
             // retry API를 사용하여 수동 분석 트리거
             const response = await fetch(`${API_URL}/meetings/${lastMeetingId}/fast-summary`, {
                 method: 'POST',
+                headers: { 'ngrok-skip-browser-warning': 'true' }
             });
             if (!response.ok) throw new Error('분석 요청에 실패했습니다.');
 

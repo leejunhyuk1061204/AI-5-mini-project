@@ -32,7 +32,9 @@ const HistoryPage: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_URL}/meetings?memberId=${memberId}`);
+            const response = await fetch(`${API_URL}/meetings?memberId=${memberId}`, {
+                headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
             if (!response.ok) throw new Error('Failed to fetch meetings');
             const data = await response.json();
             // Sort by creation date descending
@@ -64,7 +66,8 @@ const HistoryPage: React.FC = () => {
 
         try {
             const response = await fetch(`${API_URL}/meetings/${meetingId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: { 'ngrok-skip-browser-warning': 'true' }
             });
             if (!response.ok) throw new Error('Failed to delete meeting');
 
