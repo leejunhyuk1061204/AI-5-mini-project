@@ -77,8 +77,11 @@ public class ChatService {
 
                         return transactionTemplate.execute(status -> {
                             try {
-                                Meeting meeting = meetingRepository.findById(request.getMeetingId())
-                                        .orElseThrow(() -> new RuntimeException("Meeting not found"));
+                                Meeting meeting = null;
+                                if (request.getMeetingId() != null && request.getMeetingId() > 0) {
+                                    meeting = meetingRepository.findById(request.getMeetingId())
+                                            .orElse(null);
+                                }
 
                                 List<String> contextSegments;
 
@@ -99,7 +102,7 @@ public class ChatService {
                                             .map(e -> "[" + e.getFinalSegment().getMeeting().getTitle() + "] "
                                                     + e.getFinalSegment().getChunkText())
                                             .collect(Collectors.toList());
-                                } else if (meeting.getStatus() == MeetingStatus.COMPLETED) {
+                                } else if (meeting != null && meeting.getStatus() == MeetingStatus.COMPLETED) {
                                     log.info("Meeting is COMPLETED. Using final_embeddings table.");
                                     List<FinalEmbedding> allEmbeddings = finalEmbeddingRepository
                                             .findAllByFinalSegment_Meeting_MeetingId(request.getMeetingId());
@@ -113,8 +116,8 @@ public class ChatService {
                                             .limit(5)
                                             .map(e -> e.getFinalSegment().getChunkText())
                                             .collect(Collectors.toList());
-                                } else if (meeting.getStatus() == MeetingStatus.PROCEEDING
-                                        || meeting.getStatus() == MeetingStatus.RECORDED) {
+                                } else if (meeting != null && (meeting.getStatus() == MeetingStatus.PROCEEDING
+                                        || meeting.getStatus() == MeetingStatus.RECORDED)) {
                                     log.info("Meeting is in {} status. Using real-time embeddings table.",
                                             meeting.getStatus());
                                     List<Embedding> allEmbeddings = embeddingRepository
@@ -130,8 +133,9 @@ public class ChatService {
                                             .map(e -> e.getSegment().getChunkText())
                                             .collect(Collectors.toList());
                                 } else {
-                                    // ANALYZING or FAILED - use real-time as fallback if needed or return empty
-                                    log.info("Meeting is in {} status. No final result yet.", meeting.getStatus());
+                                    // ANALYZING or FAILED or No Meeting (Global Chat)
+                                    log.info("No active meeting context found (meetingId={} status={}). Returns empty context.",
+                                            request.getMeetingId(), (meeting != null ? meeting.getStatus() : "N/A"));
                                     contextSegments = List.of();
                                 }
 

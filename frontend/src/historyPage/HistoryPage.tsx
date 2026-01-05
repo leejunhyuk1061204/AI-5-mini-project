@@ -79,7 +79,7 @@ const HistoryPage: React.FC = () => {
             <main className="flex-1 flex flex-col overflow-hidden relative">
                 <div className="flex-1 flex overflow-hidden">
                     {/* List Section */}
-                    <div className={`flex-1 flex flex-col min-w-[320px] max-w-sm border-r border-[#e7ebf3] bg-white ${selectedMeeting ? 'hidden lg:flex' : 'flex'}`}>
+                    <div className={`flex-1 flex flex-col bg-white ${selectedMeeting ? 'hidden lg:flex' : 'flex'} w-full lg:w-auto lg:min-w-[320px] lg:max-w-sm lg:border-r lg:border-[#e7ebf3]`}>
                         <div className="p-4 border-b border-[#e7ebf3] bg-gray-50 flex justify-between items-center">
                             <span className="font-bold text-[#0d121b]">목록 ({meetings.length})</span>
                             <button
@@ -140,7 +140,7 @@ const HistoryPage: React.FC = () => {
                     {/* Detail Section */}
                     <div className={`flex-[2] flex bg-[#f8fafc] overflow-hidden ${selectedMeeting ? 'flex' : 'hidden lg:flex items-center justify-center'}`}>
                         {selectedMeeting && parsedResult ? (
-                            <div className="flex-1 overflow-hidden p-6 flex flex-col relative text-left">
+                            <div className="flex-1 overflow-hidden p-4 lg:p-6 flex flex-col relative text-left">
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
                                         <button
