@@ -16,6 +16,9 @@ const UploadPage: React.FC = () => {
     // History State
     const [history, setHistory] = useState<HistoryItem[]>(() => {
         try {
+            const memberId = localStorage.getItem('memberId');
+            if (!memberId) return []; // 비로그인 시 히스토리 보여주지 않음
+
             const saved = localStorage.getItem('stt_history');
             return saved ? JSON.parse(saved) : [];
         } catch (e) {
@@ -26,7 +29,10 @@ const UploadPage: React.FC = () => {
 
     // Save history to local storage whenever it changes
     useEffect(() => {
-        localStorage.setItem('stt_history', JSON.stringify(history));
+        const memberId = localStorage.getItem('memberId');
+        if (memberId) {
+            localStorage.setItem('stt_history', JSON.stringify(history));
+        }
     }, [history]);
 
     const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
@@ -199,6 +205,7 @@ const UploadPage: React.FC = () => {
                         </>
                     ) : (
                         <SttConversion
+                            key={activeHistoryItem ? activeHistoryItem.id : 'new'}
                             fileName={currentFileName}
                             file={selectedFileIndex !== null && !activeHistoryItem ? files[selectedFileIndex] : null}
                             onCancel={() => {

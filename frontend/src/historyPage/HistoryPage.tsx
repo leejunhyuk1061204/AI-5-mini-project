@@ -20,9 +20,15 @@ const HistoryPage: React.FC = () => {
     const [parsedResult, setParsedResult] = useState<SttResultData | null>(null);
     const { setCurrentMeetingId } = useMeetingContext();
 
-    const memberId = localStorage.getItem('memberId') || '1';
+    const memberId = localStorage.getItem('memberId');
 
     const fetchMeetings = useCallback(async () => {
+        if (!memberId) {
+            setMeetings([]);
+            setIsLoading(false);
+            return;
+        }
+
         setIsLoading(true);
         try {
             const response = await fetch(`/api/meetings?memberId=${memberId}`);
