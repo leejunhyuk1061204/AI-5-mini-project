@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { API_URL, JAVA_WS_URL } from '../config';
 
 import { useMeetingContext } from '../context/MeetingContext';
 import { useNavigate } from 'react-router-dom';
@@ -82,7 +83,8 @@ const LiveSttPage: React.FC = () => {
 
     // WebSocket for real-time audio streaming
     const wsRef = useRef<WebSocket | null>(null);
-    const JAVA_WS_URL = import.meta.env.VITE_JAVA_WS_URL || 'ws://localhost:8080';
+    // JAVA_WS_URL is imported from config
+
 
     // meetingId를 URL 파라미터에서 읽음 (예: /live?meetingId=1)
     const meetingIdParam = new URLSearchParams(window.location.search).get('meetingId');
@@ -325,7 +327,7 @@ const LiveSttPage: React.FC = () => {
                 // 녹음 종료 후 다운로드 확인
                 setTimeout(() => {
                     if (window.confirm('녹음한 후에 파일 다운로드 하시겠습니까?')) {
-                        const downloadUrl = `/api/files/download/${meetingId}`; // 여기서 meetingId는 클로저로 전달된 값
+                        const downloadUrl = `${API_URL}/files/download/${meetingId}`; // 여기서 meetingId는 클로저로 전달된 값
                         const link = document.createElement('a');
                         link.href = downloadUrl;
                         link.download = `meeting_${meetingId}.webm`;
@@ -365,7 +367,7 @@ const LiveSttPage: React.FC = () => {
             const memberId = parseInt(memberIdStr, 10);
             const title = `새 회의 (${new Date().toLocaleString()})`;
 
-            const res = await fetch('/api/meetings', {
+            const res = await fetch(`${API_URL}/meetings`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ memberId, title })
@@ -442,7 +444,7 @@ const LiveSttPage: React.FC = () => {
             localStorage.removeItem('live_stt_temp');
 
             if (lastMeetingId) {
-                await fetch(`/api/meetings/${lastMeetingId}`, { method: 'DELETE' });
+                await fetch(`${API_URL}/meetings/${lastMeetingId}`, { method: 'DELETE' });
             }
             // Reset all states
             setTranscripts([]);
@@ -476,7 +478,7 @@ const LiveSttPage: React.FC = () => {
         setIsSummarizing(true);
         try {
             // 분석이 안 되어 있을 수 있으므로 retry API 호출 (Background)
-            await fetch(`/api/meetings/${lastMeetingId}/retry`, { method: 'POST' });
+            await fetch(`${API_URL}/meetings/${lastMeetingId}/retry`, { method: 'POST' });
 
             alert('회의록이 저장되었습니다. 히스토리에서 확인하실 수 있습니다.');
             navigate('/history');
@@ -514,7 +516,7 @@ const LiveSttPage: React.FC = () => {
         setIsSummarizing(true);
         try {
             // retry API를 사용하여 수동 분석 트리거
-            const response = await fetch(`http://localhost:8080/api/meetings/${lastMeetingId}/fast-summary`, {
+            const response = await fetch(`${API_URL}/meetings/${lastMeetingId}/fast-summary`, {
                 method: 'POST',
             });
             if (!response.ok) throw new Error('분석 요청에 실패했습니다.');

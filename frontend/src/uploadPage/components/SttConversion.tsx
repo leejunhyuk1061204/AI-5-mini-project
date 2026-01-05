@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { SttResultData, MeetingUploadResponse } from '../../types';
 import MeetingResultDisplay from '../../components/MeetingResultDisplay';
 import { parseSummaryMarkdown } from '../../utils/meetingUtils';
+import { API_URL } from '../../config';
 
 interface SttConversionProps {
     fileName: string;
@@ -46,7 +47,7 @@ const SttConversion: React.FC<SttConversionProps> = ({
                 setLogs(prev => [...prev.map(l => ({ ...l, status: 'done' })), { message: 'AI 분석 진행 중... (화자분리, 요약)', status: 'active' }]);
                 setProgress(30);
 
-                const response = await fetch('/api/meetings/upload', {
+                const response = await fetch(`${API_URL}/meetings/upload`, {
                     method: 'POST',
                     body: formData
                 });
