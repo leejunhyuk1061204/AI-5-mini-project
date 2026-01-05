@@ -1,5 +1,5 @@
 """
-챗봇 API 라우터 - Qwen3-0.6B 모델 사용
+챗봇 API 라우터 - Qwen3-1.7B-GGUF 모델 사용
 POST /api/chat 엔드포인트 제공
 """
 from fastapi import APIRouter, HTTPException
@@ -7,12 +7,10 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import time
 import uuid
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
-
 import asyncio
 import logging
 import re
+from app.utils.model_loader import get_llm
 
 router = APIRouter(prefix="/api", tags=["chat"])
 logger = logging.getLogger(__name__)
@@ -47,7 +45,7 @@ class ChatResponse(BaseModel):
 # ─────────────────────────────────────────────────────────────
 
 class ChatModel:
-    """Qwen3-0.6B 모델 래퍼 - 한 번만 로드"""
+    """GGUF 모델을 사용하는 챗봇 래퍼"""
     _instance = None
     _initialized = False
 
@@ -60,49 +58,29 @@ class ChatModel:
         if ChatModel._initialized:
             return
         ChatModel._initialized = True
-        
-        model_name = "Qwen/Qwen3-0.6B"
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        logger.info(f"[ChatModel] Loading model: {model_name} (device: {self.device})")
-        
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
-            device_map="auto" if self.device == "cuda" else None
-        )
-        if self.device == "cpu":
-            self.model = self.model.to(self.device)
-        
-        logger.info("[ChatModel] Model loading complete!")
+        # 모델은 model_loader에서 관리함
+        logger.info("[ChatModel] Initialized with GGUF loader")
 
     def generate(self, messages: List[Dict[str, str]]) -> str:
-        """메시지 리스트를 받아 응답 생성"""
-        input_text = self.tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True
-        )
-        inputs = self.tokenizer(input_text, return_tensors="pt").to(self.device)
+        """메시지 리스트를 받아 응답 생성 (llama-cpp-python 사용)"""
+        llm = get_llm()
         
-        with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=256,
-                temperature=0.7,
-                top_p=0.9,
-                repetition_penalty=1.1,
-                do_sample=True,
-                pad_token_id=self.tokenizer.eos_token_id
-            )
-        
-        response = self.tokenizer.decode(
-            outputs[0][inputs["input_ids"].shape[1]:],
-            skip_special_tokens=True
+        # llama-cpp-python의 create_chat_completion 사용
+        # Qwen3-Instruct 모델은 내부적으로 chat_template을 처리함
+        response = llm.create_chat_completion(
+            messages=messages,
+            max_tokens=1024,
+            temperature=0.7,
+            top_p=0.9,
+            repeat_penalty=1.1,
+            stream=False
         )
-        # Strip any thinking/reasoning blocks (e.g., <think>...</think>, <thought>...</thought>)
-        response = re.sub(r'<(think|thought)>.*?(</\1>|$)', '', response, flags=re.DOTALL | re.IGNORECASE)
-        return response.strip()
+        
+        reply = response["choices"][0]["message"]["content"]
+        
+        # 사고 과정(<think>...</think>) 제거 (프론트 디자인에 따라 유지할 수도 있지만 현재는 제거)
+        reply = re.sub(r'<(think|thought)>.*?(</\1>|$)', '', reply, flags=re.DOTALL | re.IGNORECASE)
+        return reply.strip()
 
 
 # 모델 인스턴스 (서버 시작 시 한 번만 로드)

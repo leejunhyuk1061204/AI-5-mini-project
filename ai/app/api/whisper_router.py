@@ -43,10 +43,10 @@ class WhisperModelWrapper:
             return
         WhisperModelWrapper._initialized = True
         
-        model_size = "small"
+        model_size = "medium"
         print(f"[WhisperModel] 모델 로딩 중: {model_size} (device: cuda)")
         try:
-            self.model = WhisperModel(model_size, device="cuda", compute_type="float16")
+            self.model = WhisperModel(model_size, device="cuda", compute_type="int8")
             print("[WhisperModel] 모델 로딩 완료! (GPU Mode)")
         except Exception as e:
             print(f"[WhisperModel] GPU 로딩 실패, CPU로 전환합니다. Error: {e}")

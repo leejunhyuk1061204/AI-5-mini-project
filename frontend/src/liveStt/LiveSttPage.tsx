@@ -500,10 +500,17 @@ const LiveSttPage: React.FC = () => {
 
         setIsSummarizing(true);
         try {
+            // 90초 타임아웃 설정 (LLM 응답 대기 시간 충분히 확보)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 90000);
+
             // retry API를 사용하여 수동 분석 트리거
             const response = await fetch(`http://localhost:8080/api/meetings/${lastMeetingId}/fast-summary`, {
                 method: 'POST',
+                signal: controller.signal,
             });
+            clearTimeout(timeoutId);
+
             if (!response.ok) throw new Error('분석 요청에 실패했습니다.');
 
             const data = await response.json();
@@ -517,7 +524,11 @@ const LiveSttPage: React.FC = () => {
             }
         } catch (e) {
             console.error('Failed to fetch summary', e);
-            alert('요약 정보를 가져오는데 실패했습니다.');
+            if (e instanceof Error && e.name === 'AbortError') {
+                alert('AI 요약 생성에 시간이 오래 걸리고 있습니다. 잠시 후 다시 시도해주세요.');
+            } else {
+                alert('요약 정보를 가져오는데 실패했습니다.');
+            }
         } finally {
             setIsSummarizing(false);
         }

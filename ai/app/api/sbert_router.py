@@ -44,9 +44,11 @@ _model: SentenceTransformer = None
 def load_sbert_model():
     global _model  # global 키워드 필수!
     if _model is None:
+        import torch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         model_name = "jhgan/ko-sroberta-multitask"
-        print(f" {model_name} 모델 로드 중...", flush=True)
-        _model = SentenceTransformer(model_name)
+        print(f" {model_name} 모델 로드 중... (device: {device})", flush=True)
+        _model = SentenceTransformer(model_name, device=device)
         print(f" {model_name} 모델 로드 완료! (device: {_model.device})", flush=True)
     return _model
 

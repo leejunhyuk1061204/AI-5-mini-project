@@ -1,14 +1,14 @@
 """
-회의록 요약 모듈 - Qwen2.5-0.5B-Instruct 모델 사용
+회의록 요약 모듈 - Qwen3-1.7B-GGUF 모델 사용
 구조화된 JSON 형식의 회의록 생성
 """
 from fastapi import APIRouter
 from pydantic import BaseModel
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
 import json
 import re
+import logging
 from typing import Dict, Any, List, Optional
+from app.utils.model_loader import get_llm
 
 # FastAPI 라우터 설정
 router = APIRouter(prefix="/api", tags=["summarize"])
@@ -54,31 +54,22 @@ async def summarize_text(request: SummarizeRequest):
 
 
 class MeetingSummarizer:
-    """Qwen2.5-0.5B-Instruct 모델을 사용한 회의록 요약 클래스"""
+    """GGUF 모델을 사용한 회의록 요약 클래스"""
     
-    def __init__(self, model_name: str = "Qwen/Qwen2.5-0.5B-Instruct"):
+    def __init__(self, model_name: str = "ggml-org/Qwen3-1.7B-GGUF"):
         """
         요약 모델 초기화
-        
-        Args:
-            model_name: HuggingFace 모델 이름
         """
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
-            device_map="auto" if self.device == "cuda" else None
-        )
-        if self.device == "cpu":
-            self.model = self.model.to(self.device)
+        # 모델은 model_loader에서 관리함
+        logger = logging.getLogger(__name__)
+        logger.info("[MeetingSummarizer] Initialized with Qwen3-1.7B-GGUF (llama-cpp)")
         
     def summarize(self, text: str) -> Dict[str, Any]:
         """
         회의 내용을 구조화된 JSON 형식으로 요약
         """
         print(f"\n[AI] 요약 요청 수신 (텍스트 길이: {len(text)})")
-        print(f"[AI] GPU(CUDA) 사용 여부: {self.device == 'cuda'}")
+        print(f"[AI] Ollama API 사용 (qwen3:1.7b)")
         print(f"[AI] 입력 텍스트 미리보기: {text[:200]}...")
 
         # 텍스트가 너무 짧거나 무의미한 경우 처리
@@ -98,22 +89,18 @@ class MeetingSummarizer:
 회의 내용 (STT 전사 결과):
 {text}
 
-### 지침:
-1. **내용 충실성**: 반드시 제공된 회의 내용만을 바탕으로 요약하세요. 모르는 내용을 지어내지 마세요 (환각 방지).
-2. **STT 오류 교정**: '박백업'->'백엔드', '스탱'->'스택' 등 기술 용어의 음성 인식 오류를 문맥에 맞게 수정하여 요약하세요.
-3. **간결성**: 'description'은 2문장 내외, 'core_summary'는 최대 3개의 핵심 포인트로 작성하세요.
+### 카테고리 분류 가이드:
+1. **decisions (결정 사항)**: 회의에서 최종 확정된 방침이나 선택. (예: "A안으로 확정", "B 기술 사용 결정")
+2. **action_items (조치 필요 사항)**: 특정 인물이 수행해야 할 구체적인 과업. (예: "홍길동은 내일까지 보고서 제출", "디자인 수정 작업 착수") **'수정하기'처럼 너무 짧은 단어는 지양하고 구체적으로 쓰세요.**
+3. **pending_items (보류 및 논의 필요)**: 결론이 나지 않았거나, 추적 관찰이 필요하거나, 나중에 다시 논의하기로 한 사항. (예: "예산 문제는 다음 주 재논의", "서버 도입은 잠정 보류")
 
-### 예시 (Few-shot):
-입력: "이번 프로젝트 기술 스탱 정리합시다. 백앤드는 자바 스프링 버튼 사용하고 파이스와 페스트 API 구축했습니다."
-출력: {{
-    "description": "프로젝트 핵심 기술 스택으로 Java Spring Boot와 Python FastAPI 구축을 확정했습니다.",
-    "core_summary": ["Java Spring Boot 기반 백엔드 구성", "Python FastAPI를 이용한 API 서버 구축"],
-    "meeting_type": "기술 협의",
-    "topics": ["기술 스택", "백엔드", "API"],
-    "decisions": ["Spring Boot 및 FastAPI 사용"],
-    "action_items": [],
-    "pending_items": []
-}}
+### 지침:
+1. **반드시 지정된 JSON 형식으로만 답변하세요.** 다른 설명이나 마크다운 백틱(```)을 붙이지 마세요.
+2. **언어**: 한국어만 사용하세요. **한자(Chinese characters)는 절대 사용하지 마세요.**
+3. **내용 충실성**: 반드시 제공된 회의 내용만을 바탕으로 요약하세요. **텍스트에 없는 단어(예: 테스트->투표)를 임의로 지어내거나 바꾸지 마세요.**
+4. **구체성**: '수정하기', '보고하기' 등은 너무 모호합니다. '누가 무엇을 어떻게' 하는지에 대한 정보를 최대한 포함하여 구체적인 문장으로 작성하세요.
+5. **간결성**: 'description'은 2문장 내외, 'core_summary'는 최대 3개의 핵심 포인트로 작성하세요.
+6. **반복 금지**: 동일한 문장이나 단어를 반복해서 생성하지 마세요.
 
 응답 형식 (JSON):
 {{
@@ -122,39 +109,31 @@ class MeetingSummarizer:
     "meeting_type": "유형",
     "topics": ["키워드1", "키워드2"],
     "decisions": ["결정사항"],
-    "action_items": ["할일"],
-    "pending_items": ["보류"]
+    "action_items": ["조치사항"],
+    "pending_items": ["보류사항"]
 }}"""
 
         messages = [
             {"role": "user", "content": prompt}
         ]
         
-        input_text = self.tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True
-        )
-        inputs = self.tokenizer(input_text, return_tensors="pt").to(self.device)
+        llm = get_llm()
         
-        with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=512, # 요약용으로 충분히 작게 유지
-                temperature=0.1,    # 환각 방지를 위해 매우 낮게 설정
-                top_p=0.9,
-                do_sample=True,
-                pad_token_id=self.tokenizer.eos_token_id
-            )
-        
-        response = self.tokenizer.decode(
-            outputs[0][inputs["input_ids"].shape[1]:], 
-            skip_special_tokens=True
+        # llama-cpp-python의 create_chat_completion 사용
+        response = llm.create_chat_completion(
+            messages=messages,
+            max_tokens=1024,
+            temperature=0.3,
+            top_p=0.9,
+            repeat_penalty=1.2,
+            stream=False
         )
         
-        print(f"[AI] 모델 응답: {response[:100]}...")
+        response_text = response["choices"][0]["message"]["content"]
         
-        return self._parse_json_response(response)
+        print(f"[AI] 모델 응답: {response_text[:100]}...")
+        
+        return self._parse_json_response(response_text)
     
     def _parse_json_response(self, response: str) -> Dict[str, Any]:
         """
@@ -268,7 +247,7 @@ if __name__ == "__main__":
     print("\n" + "="*50)
     
     # 요약 실행
-    print("\nQwen2.5-0.5B-Instruct 모델 로딩 중...")
+    print("\nQwen3-1.7B-GGUF 모델 로딩 중...")
     summarizer = MeetingSummarizer()
     
     print("회의록 요약 생성 중...")

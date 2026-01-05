@@ -62,6 +62,9 @@ const SttConversion: React.FC<SttConversionProps> = ({
                 const apiResponse: { data: MeetingUploadResponse } = await response.json();
                 const meeting = apiResponse.data;
 
+                // [추가] 서버에서 온 원본 summary 확인용 로그
+                console.log("원본 summary:", meeting.summary);
+
                 // Parse summary markdown into structured data
                 const parsedResult = parseSummaryMarkdown(meeting.summary, meeting.fullText);
 
