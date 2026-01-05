@@ -1,9 +1,8 @@
---extra-index-url https://download.pytorch.org/whl/cu124
-
-# [1] Core Engine - GPU (CUDA 12.4) 호환 버전 고정
-torch==2.6.0+cu124
-torchvision==0.21.0+cu124
-torchaudio==2.6.0+cu124
+# Start of requirements.txt
+# [1] Core Engine - Generic/MacOS Compatible (Updated for CVE-2025-32434)
+torch>=2.6.0
+torchvision>=0.21.0
+torchaudio>=2.6.0
 
 # [2] Web Framework & Environment
 fastapi
@@ -13,7 +12,7 @@ python-dotenv
 
 # [3] Voice & Speaker Diarization (음성인식 및 화자분리)
 faster-whisper
-pyannote.audio==3.1.1
+pyannote.audio>=3.1.1
 speechbrain
 omegaconf
 
@@ -21,7 +20,7 @@ omegaconf
 transformers
 accelerate
 sentence-transformers
-numpy
+numpy<2.0
 
 # [5] Optional LLM APIs (필요 시 활성화)
 # openai
