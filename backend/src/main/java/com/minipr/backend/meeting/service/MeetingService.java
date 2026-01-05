@@ -466,6 +466,7 @@ public class MeetingService {
             sb.append("- ").append(item).append("\n");
         sb.append("\n");
 
+
         sb.append("#### 🚀 조치 필요 사항\n");
         for (String item : res.action_items())
             sb.append("- ").append(item).append("\n");
@@ -474,6 +475,7 @@ public class MeetingService {
         sb.append("#### ⏳ 보류 및 논의 필요\n");
         for (String item : res.pending_items())
             sb.append("- ").append(item).append("\n");
+
 
         return sb.toString();
     }

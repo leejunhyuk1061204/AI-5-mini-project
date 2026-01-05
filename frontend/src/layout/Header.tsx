@@ -84,13 +84,23 @@ const Header: React.FC = () => {
                             </button>
                         </div>
                     ) : (
-                        <Link
-                            to="/login"
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-[#444746] hover:bg-[#f0f4f9] transition-colors"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">login</span>
-                            <span className="hidden sm:inline">로그인</span>
-                        </Link>
+
+                        <div className="flex items-center gap-2">
+                            <Link
+                                to="/login"
+                                className="px-3 py-2 rounded-lg text-sm font-medium text-[#444746] hover:bg-[#f0f4f9] transition-colors"
+                            >
+                                로그인
+                            </Link>
+                            <div className="w-[1px] h-3 bg-[#e7ebf3]"></div>
+                            <Link
+                                to="/signup"
+                                className="px-3 py-2 rounded-lg text-sm font-medium text-[#135bec] hover:bg-blue-50 transition-colors"
+                            >
+                                회원가입
+                            </Link>
+                        </div>
+
                     )}
                 </div>
             </div>

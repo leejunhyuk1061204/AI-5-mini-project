@@ -19,7 +19,11 @@ export interface ChatResponse {
     took_ms: number;
 }
 
-const API_BASE_URL = 'http://localhost:8080/api';
+
+import { API_URL } from '../config';
+
+const API_BASE_URL = API_URL;
+
 
 export const sendMessage = async (request: ChatRequest): Promise<ChatResponse> => {
     try {
@@ -27,6 +31,9 @@ export const sendMessage = async (request: ChatRequest): Promise<ChatResponse> =
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+
+                'ngrok-skip-browser-warning': 'true',
+
             },
             body: JSON.stringify(request),
         });

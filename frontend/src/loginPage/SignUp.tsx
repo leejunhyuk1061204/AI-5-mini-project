@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { API_URL } from '../config';
+
 
 const SignUp: React.FC = () => {
     const navigate = useNavigate();
@@ -40,10 +42,11 @@ const SignUp: React.FC = () => {
         }
 
         try {
-            const res = await fetch('/api/members', {
+            const res = await fetch(`${API_URL}/members`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true',
                 },
                 body: JSON.stringify({
                     name,

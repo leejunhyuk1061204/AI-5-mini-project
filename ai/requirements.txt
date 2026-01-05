@@ -4,6 +4,7 @@
 
 # === PyTorch GPU (CUDA 12.4) ===
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+
 torch==2.6.0
 torchvision==0.21.0
 torchaudio==2.6.0
@@ -15,6 +16,7 @@ python-dotenv==1.0.1
 python-multipart
 
 # === AI/ML Models ===
+
 transformers==4.47.1
 accelerate==1.1.1
 # llama-cpp-python==0.3.5  # Ollama로 대체됨
@@ -22,11 +24,15 @@ huggingface-hub==0.27.1
 sentence-transformers==3.3.1
 # bitsandbytes==0.45.0  # GGUF 전환으로 불필요 (필요시 주석 해제)
 
+
 # === Speech Processing ===
 faster-whisper==1.2.1
 pyannote.audio==3.1.1
 speechbrain
 omegaconf
+
+nvidia-cudnn-cu12==9.1.0.70
+
 
 # === Audio Processing ===
 av==16.0.1
@@ -34,6 +40,7 @@ soundfile==0.13.1
 librosa==0.11.0
 
 # === Utilities ===
+
 numpy==1.26.4
 pydantic==2.12.5
 typing-extensions
@@ -50,3 +57,4 @@ httpx==0.28.1
 #
 # 또는 한 번에 설치:
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 && pip install -r requirements.txt
+

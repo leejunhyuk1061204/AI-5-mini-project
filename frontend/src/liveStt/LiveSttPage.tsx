@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-
+import { API_URL, JAVA_WS_URL } from '../config';
 import { useMeetingContext } from '../context/MeetingContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -82,7 +82,11 @@ const LiveSttPage: React.FC = () => {
 
     // WebSocket for real-time audio streaming
     const wsRef = useRef<WebSocket | null>(null);
+
     const JAVA_WS_URL = import.meta.env.VITE_JAVA_WS_URL || 'ws://localhost:8080';
+    // JAVA_WS_URL is imported from config
+
+
 
     // meetingId를 URL 파라미터에서 읽음 (예: /live?meetingId=1)
     const meetingIdParam = new URLSearchParams(window.location.search).get('meetingId');
@@ -108,6 +112,12 @@ const LiveSttPage: React.FC = () => {
 
     // Auto-save temp data
     useEffect(() => {
+
+        if (transcripts.length === 0 && !summary) {
+            localStorage.removeItem('live_stt_temp');
+            return;
+        }
+
         const dataToSave = {
             transcripts,
             summary
@@ -321,7 +331,8 @@ const LiveSttPage: React.FC = () => {
                 // 녹음 종료 후 다운로드 확인
                 setTimeout(() => {
                     if (window.confirm('녹음한 후에 파일 다운로드 하시겠습니까?')) {
-                        const downloadUrl = `/api/files/download/${meetingId}`; // 여기서 meetingId는 클로저로 전달된 값
+
+                        const downloadUrl = `${API_URL}/files/download/${meetingId}`; // 여기서 meetingId는 클로저로 전달된 값
                         const link = document.createElement('a');
                         link.href = downloadUrl;
                         link.download = `meeting_${meetingId}.webm`;
@@ -361,9 +372,14 @@ const LiveSttPage: React.FC = () => {
             const memberId = parseInt(memberIdStr, 10);
             const title = `새 회의 (${new Date().toLocaleString()})`;
 
-            const res = await fetch('/api/meetings', {
+
+            const res = await fetch(`${API_URL}/meetings`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
+                },
+
                 body: JSON.stringify({ memberId, title })
             });
 
@@ -415,21 +431,39 @@ const LiveSttPage: React.FC = () => {
         }
     };
 
+
     // Clear transcript and meeting from DB
+
+
     const handleClear = async () => {
         if (isListening) {
             alert('녹음 중에는 삭제할 수 없습니다. 먼저 녹음을 중지해주세요.');
             return;
         }
-        if (!lastMeetingId) {
+
+
+        const hasContent = transcripts.length > 0 || summary || interimTranscript;
+        if (!lastMeetingId && !hasContent) {
             alert('삭제할 기록이 없습니다.');
             return;
         }
-        if (!window.confirm('정말로 기록을 삭제하시겠습니까? 데이터베이스에서도 영구 삭제됩니다.')) return;
+
+        const confirmMsg = lastMeetingId
+            ? '정말로 기록을 삭제하시겠습니까? 데이터베이스에서도 영구 삭제됩니다.'
+            : '화면에 표시된 내용을 삭제하시겠습니까?';
+
+        if (!window.confirm(confirmMsg)) return;
 
         try {
+            // Remove local storage explicitly
+            localStorage.removeItem('live_stt_temp');
+
             if (lastMeetingId) {
-                await fetch(`/api/meetings/${lastMeetingId}`, { method: 'DELETE' });
+                await fetch(`${API_URL}/meetings/${lastMeetingId}`, {
+                    method: 'DELETE',
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
+
             }
             // Reset all states
             setTranscripts([]);
@@ -463,7 +497,12 @@ const LiveSttPage: React.FC = () => {
         setIsSummarizing(true);
         try {
             // 분석이 안 되어 있을 수 있으므로 retry API 호출 (Background)
-            await fetch(`/api/meetings/${lastMeetingId}/retry`, { method: 'POST' });
+
+            await fetch(`${API_URL}/meetings/${lastMeetingId}/retry`, {
+                method: 'POST',
+                headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
+
 
             alert('회의록이 저장되었습니다. 히스토리에서 확인하실 수 있습니다.');
             navigate('/history');
@@ -500,16 +539,17 @@ const LiveSttPage: React.FC = () => {
 
         setIsSummarizing(true);
         try {
+
             // 90초 타임아웃 설정 (LLM 응답 대기 시간 충분히 확보)
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 90000);
 
+            
             // retry API를 사용하여 수동 분석 트리거
-            const response = await fetch(`http://localhost:8080/api/meetings/${lastMeetingId}/fast-summary`, {
+            const response = await fetch(`${API_URL}/meetings/${lastMeetingId}/fast-summary`, {
                 method: 'POST',
-                signal: controller.signal,
+                headers: { 'ngrok-skip-browser-warning': 'true' }
             });
-            clearTimeout(timeoutId);
 
             if (!response.ok) throw new Error('분석 요청에 실패했습니다.');
 
@@ -524,6 +564,7 @@ const LiveSttPage: React.FC = () => {
             }
         } catch (e) {
             console.error('Failed to fetch summary', e);
+
             if (e instanceof Error && e.name === 'AbortError') {
                 alert('AI 요약 생성에 시간이 오래 걸리고 있습니다. 잠시 후 다시 시도해주세요.');
             } else {

@@ -7,10 +7,12 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import time
 import uuid
+
 import asyncio
 import logging
 import re
 from app.utils.model_loader import get_llm
+
 
 router = APIRouter(prefix="/api", tags=["chat"])
 logger = logging.getLogger(__name__)
@@ -45,7 +47,9 @@ class ChatResponse(BaseModel):
 # ─────────────────────────────────────────────────────────────
 
 class ChatModel:
+
     """GGUF 모델을 사용하는 챗봇 래퍼"""
+
     _instance = None
     _initialized = False
 
@@ -58,6 +62,7 @@ class ChatModel:
         if ChatModel._initialized:
             return
         ChatModel._initialized = True
+
         # 모델은 model_loader에서 관리함
         logger.info("[ChatModel] Initialized with GGUF loader")
 
@@ -81,6 +86,7 @@ class ChatModel:
         # 사고 과정(<think>...</think>) 제거 (프론트 디자인에 따라 유지할 수도 있지만 현재는 제거)
         reply = re.sub(r'<(think|thought)>.*?(</\1>|$)', '', reply, flags=re.DOTALL | re.IGNORECASE)
         return reply.strip()
+
 
 
 # 모델 인스턴스 (서버 시작 시 한 번만 로드)
