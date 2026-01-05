@@ -3,6 +3,14 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# [Patch] Torchaudio 2.6+ 호환성 패치 (pyannote.audio에서 사용) -> 반드시 다른 앱 import 전에 실행되어야 함
+import torchaudio
+if not hasattr(torchaudio, "set_audio_backend"):
+    torchaudio.set_audio_backend = lambda x: None
+if not hasattr(torchaudio, "get_audio_backend"):
+    torchaudio.get_audio_backend = lambda: None
+
 from app.api.chat_router import router as chat_router
 from app.api.chat_router import load_model
 from app.api.summarize import router as summarize_router
@@ -12,6 +20,8 @@ from app.api.whisper_router import router as whisper_router
 from app.api.whisper_router import load_model as load_whisper_model
 from app.api.diarization_router import router as diarization_router
 from app.api.diarization_router import load_model as load_diarization_model
+
+
 
 # 로깅 설정
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
