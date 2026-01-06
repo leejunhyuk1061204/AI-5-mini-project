@@ -50,6 +50,9 @@ const SttConversion: React.FC<SttConversionProps> = ({
 
                 const response = await fetch(`${API_URL}/meetings/upload`, {
                     method: 'POST',
+                    headers: {
+                        'ngrok-skip-browser-warning': 'true',
+                    },
                     body: formData
                 });
 
