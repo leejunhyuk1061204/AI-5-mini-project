@@ -13,7 +13,7 @@
 | **STT** | 음성 인식 | faster-whisper (small) | **faster-whisper (medium)** |
 | **Diarization** | 화자 분리 | pyannote (기본) | **pyannote (Max Speakers 지정)** |
 | **Summary** | 회의록 요약 | Qwen2.5-0.5B | **Qwen3-0.6B** |
-| **Chatbot** | AI 어시스턴트 | Qwen-0.6B | **Qwen3.0-1.7B-Instruct** |
+| **Chatbot** | AI 어시스턴트 | Qwen-0.6B | **Qwen3-1.7B-Instruct** |
 
 ## 🔄 모델 변경 요약 (기존 → 현재)
 
