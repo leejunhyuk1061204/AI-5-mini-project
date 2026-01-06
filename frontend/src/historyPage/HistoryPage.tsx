@@ -67,6 +67,9 @@ const HistoryPage: React.FC = () => {
         try {
             const response = await fetch(`${API_URL}/meetings/${meetingId}`, {
                 method: 'DELETE',
+                headers: {
+                    'ngrok-skip-browser-warning': 'true',
+                },
             });
             if (!response.ok) throw new Error('Failed to delete meeting');
 
