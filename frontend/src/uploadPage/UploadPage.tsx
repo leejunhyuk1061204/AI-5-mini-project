@@ -61,6 +61,14 @@ const UploadPage: React.FC = () => {
         e.preventDefault();
         setIsDragging(false);
 
+        const memberId = localStorage.getItem('memberId');
+        if (!memberId) {
+            if (window.confirm('로그인이 필요한 기능입니다. 로그인 페이지로 이동하시겠습니까?')) {
+                window.location.href = '/login';
+            }
+            return;
+        }
+
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             const newFiles = Array.from(e.dataTransfer.files).filter(file =>
                 file.type.startsWith('audio/') || file.name.endsWith('.mp3') || file.name.endsWith('.m4a')
@@ -74,6 +82,13 @@ const UploadPage: React.FC = () => {
     }, []);
 
     const handleFilesSelected = useCallback((newFiles: File[]) => {
+        const memberId = localStorage.getItem('memberId');
+        if (!memberId) {
+            if (window.confirm('로그인이 필요한 기능입니다. 로그인 페이지로 이동하시겠습니까?')) {
+                window.location.href = '/login';
+            }
+            return;
+        }
         setFiles(prev => [...prev, ...newFiles]);
         setSelectedFileIndex(null);
     }, []);

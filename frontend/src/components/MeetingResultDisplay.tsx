@@ -74,11 +74,15 @@ const MeetingResultDisplay: React.FC<MeetingResultDisplayProps> = ({
                             </span>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            {result.topics.map((topic, idx) => (
-                                <span key={idx} className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full">
-                                    #{topic}
-                                </span>
-                            ))}
+                            {result.topics && result.topics.filter(t => t.trim()).length > 0 ? (
+                                result.topics.filter(t => t.trim()).map((topic, idx) => (
+                                    <span key={idx} className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full">
+                                        #{topic}
+                                    </span>
+                                ))
+                            ) : (
+                                <span className="text-gray-400 text-xs italic">주제 없음</span>
+                            )}
                         </div>
                     </div>
 
@@ -94,12 +98,16 @@ const MeetingResultDisplay: React.FC<MeetingResultDisplayProps> = ({
                         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                             <h4 className="text-sm font-bold text-blue-800 mb-2">핵심 요약</h4>
                             <ul className="space-y-1.5">
-                                {result.core_summary.map((item, idx) => (
-                                    <li key={idx} className="flex gap-2 text-sm text-blue-900">
-                                        <span className="text-blue-500 shrink-0">•</span>
-                                        {item}
-                                    </li>
-                                ))}
+                                {result.core_summary && result.core_summary.filter(t => t.trim()).length > 0 ? (
+                                    result.core_summary.filter(t => t.trim()).map((item, idx) => (
+                                        <li key={idx} className="flex gap-2 text-sm text-blue-900">
+                                            <span className="text-blue-500 shrink-0">•</span>
+                                            {item}
+                                        </li>
+                                    ))
+                                ) : (
+                                    <li className="text-gray-400 text-sm italic">요약된 내용이 없습니다.</li>
+                                )}
                             </ul>
                         </div>
                     </div>
@@ -113,12 +121,16 @@ const MeetingResultDisplay: React.FC<MeetingResultDisplayProps> = ({
                                 결정 사항
                             </h3>
                             <ul className="space-y-3">
-                                {result.decisions.map((item, idx) => (
-                                    <li key={idx} className="flex gap-3 text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
-                                        <span className="text-green-500 font-bold shrink-0">✓</span>
-                                        {item}
-                                    </li>
-                                ))}
+                                {result.decisions && result.decisions.filter(t => t.trim()).length > 0 ? (
+                                    result.decisions.filter(t => t.trim()).map((item, idx) => (
+                                        <li key={idx} className="flex gap-3 text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">
+                                            <span className="text-green-500 font-bold shrink-0">✓</span>
+                                            {item}
+                                        </li>
+                                    ))
+                                ) : (
+                                    <li className="text-gray-400 text-sm italic py-2">결정된 사항이 없습니다.</li>
+                                )}
                             </ul>
                         </div>
 
@@ -129,12 +141,16 @@ const MeetingResultDisplay: React.FC<MeetingResultDisplayProps> = ({
                                 조치 필요 사항
                             </h3>
                             <ul className="space-y-3">
-                                {result.action_items.map((item, idx) => (
-                                    <li key={idx} className="flex gap-3 text-sm text-gray-700 bg-amber-50 p-3 rounded-lg border border-amber-100">
-                                        <span className="text-amber-500 font-bold shrink-0">→</span>
-                                        {item}
-                                    </li>
-                                ))}
+                                {result.action_items && result.action_items.filter(t => t.trim()).length > 0 ? (
+                                    result.action_items.filter(t => t.trim()).map((item, idx) => (
+                                        <li key={idx} className="flex gap-3 text-sm text-gray-700 bg-amber-50 p-3 rounded-lg border border-amber-100">
+                                            <span className="text-amber-500 font-bold shrink-0">→</span>
+                                            {item}
+                                        </li>
+                                    ))
+                                ) : (
+                                    <li className="text-gray-400 text-sm italic py-2">조치 필요 사항이 없습니다.</li>
+                                )}
                             </ul>
                         </div>
 
@@ -145,12 +161,16 @@ const MeetingResultDisplay: React.FC<MeetingResultDisplayProps> = ({
                                 보류 및 논의 필요
                             </h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {result.pending_items.map((item, idx) => (
-                                    <div key={idx} className="flex gap-2 items-center text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
-                                        <span className="material-symbols-outlined text-[16px]">help</span>
-                                        {item}
-                                    </div>
-                                ))}
+                                {result.pending_items && result.pending_items.filter(t => t.trim()).length > 0 ? (
+                                    result.pending_items.filter(t => t.trim()).map((item, idx) => (
+                                        <div key={idx} className="flex gap-2 items-center text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+                                            <span className="material-symbols-outlined text-[16px]">help</span>
+                                            {item}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="col-span-full text-gray-400 text-sm italic py-2">보류된 사항이 없습니다.</div>
+                                )}
                             </div>
                         </div>
                     </div>

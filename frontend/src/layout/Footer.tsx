@@ -11,7 +11,7 @@ const Footer: React.FC<FooterProps> = ({ onToggleChatbot, isChatbotOpen, showCha
         <footer className="bg-white border-t border-[#e7ebf3] py-4 px-8 z-20 relative">
             <div className="max-w-[1400px] mx-auto flex items-center justify-between">
                 <div className="text-[#4c669a] text-sm">
-                    © 2024 AI 회의록. All rights reserved.
+                    © 2026 AI 회의록. All rights reserved.
                 </div>
 
                 {showChatbotToggle && (
