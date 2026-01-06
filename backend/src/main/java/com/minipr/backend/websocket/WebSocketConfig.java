@@ -49,7 +49,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(audioWebSocketHandler(), "/ws/audio")
-                .setAllowedOrigins(allowedOrigins.split(","));
+                .setAllowedOrigins("*");
     }
 
     @Bean

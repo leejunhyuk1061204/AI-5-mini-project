@@ -329,14 +329,32 @@ const LiveSttPage: React.FC = () => {
                 // 녹음 종료 후 다운로드 확인
                 setTimeout(() => {
                     if (window.confirm('녹음한 후에 파일 다운로드 하시겠습니까?')) {
-
                         const downloadUrl = `${API_URL}/files/download/${meetingId}`; // 여기서 meetingId는 클로저로 전달된 값
-                        const link = document.createElement('a');
-                        link.href = downloadUrl;
-                        link.download = `meeting_${meetingId}.webm`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
+
+                        // ngrok warning bypass for download
+                        fetch(downloadUrl, {
+                            headers: {
+                                'ngrok-skip-browser-warning': 'true',
+                            }
+                        })
+                            .then(response => {
+                                if (!response.ok) throw new Error('Download failed');
+                                return response.blob();
+                            })
+                            .then(blob => {
+                                const url = window.URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = `meeting_${meetingId}.webm`;
+                                document.body.appendChild(link);
+                                link.click();
+                                window.URL.revokeObjectURL(url);
+                                document.body.removeChild(link);
+                            })
+                            .catch(err => {
+                                console.error('Download error:', err);
+                                alert('파일 다운로드 중 오류가 발생했습니다.');
+                            });
                     }
                 }, 100);
             };
@@ -375,6 +393,7 @@ const LiveSttPage: React.FC = () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true',
                 },
 
                 body: JSON.stringify({ memberId, title })
@@ -466,6 +485,9 @@ const LiveSttPage: React.FC = () => {
             if (lastMeetingId) {
                 await fetch(`${API_URL}/meetings/${lastMeetingId}`, {
                     method: 'DELETE',
+                    headers: {
+                        'ngrok-skip-browser-warning': 'true',
+                    }
                 });
 
             }
@@ -504,6 +526,9 @@ const LiveSttPage: React.FC = () => {
 
             await fetch(`${API_URL}/meetings/${lastMeetingId}/retry`, {
                 method: 'POST',
+                headers: {
+                    'ngrok-skip-browser-warning': 'true',
+                }
             });
 
 
@@ -550,6 +575,9 @@ const LiveSttPage: React.FC = () => {
             // retry API를 사용하여 수동 분석 트리거
             const response = await fetch(`${API_URL}/meetings/${lastMeetingId}/fast-summary`, {
                 method: 'POST',
+                headers: {
+                    'ngrok-skip-browser-warning': 'true',
+                },
                 signal: controller.signal
             });
 

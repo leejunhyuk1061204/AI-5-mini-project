@@ -4,8 +4,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
@@ -17,6 +19,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadRequest(IllegalArgumentException e) {
+        log.error("Bad Request: ", e);
         return ResponseEntity.badRequest()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(ApiResponse.fail(e.getMessage()));
