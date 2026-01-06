@@ -34,7 +34,7 @@ const Header: React.FC = () => {
                         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#135bec] text-white shrink-0">
                             <span className="material-symbols-outlined text-[20px]">graphic_eq</span>
                         </div>
-                        <span className="text-[#0d121b] font-bold text-lg tracking-tight hidden sm:block">AI 회의록</span>
+                        <span className="text-[#0d121b] font-bold text-lg tracking-tight hidden sm:block">SpeakFlow</span>
                     </Link>
 
                     {/* Navigation - Moved to left next to logo */}
