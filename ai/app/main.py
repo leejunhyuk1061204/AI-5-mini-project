@@ -14,6 +14,7 @@ if not hasattr(torchaudio, "get_audio_backend"):
 from app.api.chat_router import router as chat_router
 from app.api.chat_router import load_model
 from app.api.summarize import router as summarize_router
+from app.api.summarize import load_summarizer  # 요약 모델 프리로드용
 from app.api.sbert_router import router as sbert_router
 from app.api.sbert_router import load_sbert_model
 from app.api.whisper_router import router as whisper_router
@@ -76,10 +77,11 @@ async def lifespan(app: FastAPI):
     print("[STARTUP] AI Meeting Minutes Server starting...", flush=True)
     print("[STARTUP] Loading AI models... Please wait...", flush=True)
     try:
-        load_model()             # Chat Model
+        load_model()             # Chat Model (1.7B)
+        load_summarizer()        # Summarize Model (0.6B) - NEW
         load_sbert_model()        # SBERT Model
         load_whisper_model()      # Whisper Model
-        load_diarization_model()  # Diarization Model (NEW)
+        load_diarization_model()  # Diarization Model
         print("[OK] All models loaded successfully!", flush=True)
     except Exception as e:
         print(f"[ERROR] Model loading failed: {e}", flush=True)

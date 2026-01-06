@@ -81,7 +81,7 @@ def get_llm() -> OllamaClient:
 
 
 def load_model():
-    """모델 로드 (Ollama 연결 확인)"""
+    """모델 로드 (Ollama 연결 확인 + 워밍업)"""
     try:
         client = get_llm()
         # 간단한 연결 테스트
@@ -92,6 +92,15 @@ def load_model():
             logger.warning(f"[OllamaClient] Model {OLLAMA_MODEL} not found. Available: {models}")
         else:
             logger.info(f"[OllamaClient] Model {OLLAMA_MODEL} ready!")
+        
+        # 워밍업 쿼리 - 모델 메모리 로드
+        logger.info(f"[OllamaClient] Warming up {OLLAMA_MODEL}...")
+        client.create_chat_completion(
+            messages=[{"role": "user", "content": "hi"}],
+            max_tokens=10,
+            temperature=0.1
+        )
+        logger.info(f"[OllamaClient] Warmup complete!")
     except httpx.ConnectError:
         logger.error("[OllamaClient] Cannot connect to Ollama. Make sure it's running.")
         raise RuntimeError("Ollama 서버에 연결할 수 없습니다.")

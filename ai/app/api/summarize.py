@@ -40,10 +40,26 @@ _summarizer: "MeetingSummarizer" = None
 
 
 def load_summarizer():
-    """요약 모델 로드"""
+    """요약 모델 로드 + 워밍업"""
     global _summarizer
     if _summarizer is None:
         _summarizer = MeetingSummarizer()
+        # 워밍업 쿼리 - 모델 메모리 로드
+        logger = logging.getLogger(__name__)
+        logger.info(f"[MeetingSummarizer] Warming up {SUMMARY_OLLAMA_MODEL}...")
+        try:
+            _summarizer.client.post(
+                f"{SUMMARY_OLLAMA_BASE_URL}/api/chat",
+                json={
+                    "model": SUMMARY_OLLAMA_MODEL,
+                    "messages": [{"role": "user", "content": "hi"}],
+                    "stream": False,
+                    "options": {"num_predict": 10}
+                }
+            )
+            logger.info(f"[MeetingSummarizer] Warmup complete!")
+        except Exception as e:
+            logger.warning(f"[MeetingSummarizer] Warmup failed: {e}")
     return _summarizer
 
 
