@@ -1,83 +1,230 @@
-# AI-5-mini-project
+# AI Meeting Minutes
 
-# ai
-# 1. ai 폴더 이동
+회의 음성/녹음을 업로드하거나 실시간으로 전사·화자 분리·요약하고, 회의록 기반 챗봇으로 질의할 수 있는 풀스택 웹 애플리케이션입니다.
+
+---
+
+## Tech Stack
+
+| Layer | Stack |
+|-------|--------|
+| **Frontend** | React 18, TypeScript, Vite, React Router, Tailwind CSS |
+| **Backend** | Spring Boot 3 (Java), WebSocket, JPA/H2 |
+| **AI Service** | FastAPI, PyTorch, Whisper, pyannote (화자 분리), SBERT, Ollama (Qwen3) |
+
+---
+
+## System Architecture
+
+### High-level overview
+
+```mermaid
+flowchart TB
+    subgraph Client["🖥️ Client"]
+        Browser["Browser (React SPA)"]
+    end
+
+    subgraph Backend["⚙️ Backend (Spring Boot :8080)"]
+        API["REST API · Meeting · Member · File · Chat"]
+        WS["WebSocket 실시간 오디오 스트림"]
+        API --> API
+        WS --> WS
+    end
+
+    subgraph AI["🤖 AI Service (FastAPI :8001)"]
+        Whisper["Whisper STT"]
+        Diar["Diarization 화자 분리"]
+        Sum["Summarize Qwen3 0.6B"]
+        Chat["Chat Qwen3 1.7B"]
+        SBERT["SBERT Embedding"]
+    end
+
+    Browser -->|HTTP| API
+    Browser -->|WebSocket| WS
+    API -->|HTTP| Whisper
+    API -->|HTTP| Diar
+    API -->|HTTP| Sum
+    API -->|HTTP| Chat
+    API -->|HTTP| SBERT
+    WS -->|청크 전송| Whisper
+```
+
+### Component & data flow
+
+```mermaid
+flowchart LR
+    subgraph Frontend["Frontend :3000"]
+        Landing["Landing"]
+        Upload["Upload 파일 업로드"]
+        Live["Live STT 실시간 전사"]
+        History["History 회의록 목록"]
+        Chatbot["Chatbot 회의록 QA"]
+    end
+
+    subgraph Backend["Backend :8080"]
+        MeetingCtrl["MeetingController"]
+        MemberCtrl["MemberController"]
+        FileCtrl["FileController"]
+        ChatCtrl["ChatController"]
+        AudioWS["Audio WebSocket"]
+    end
+
+    subgraph AI["AI :8001"]
+        T["/transcribe"]
+        D["/diarize*"]
+        S["/summarize"]
+        C["/chat"]
+        E["/embedding"]
+    end
+
+    Upload --> MeetingCtrl
+    Live --> AudioWS
+    History --> MeetingCtrl
+    Chatbot --> ChatCtrl
+
+    MeetingCtrl --> T
+    MeetingCtrl --> D
+    MeetingCtrl --> S
+    ChatCtrl --> C
+    Backend -.->|벡터 검색용| E
+    AudioWS --> T
+```
+
+- `*` diarize: 화자 분리 + 전사 통합(`/diarize_and_transcribe`) 지원
+
+### AI Service internal
+
+```mermaid
+flowchart TB
+    subgraph API["FastAPI App"]
+        R1["/api/transcribe Whisper"]
+        R2["/api/v1/diarize* pyannote+Whisper"]
+        R3["/api/summarize Ollama qwen3:0.6b"]
+        R4["/api/chat Ollama qwen3:1.7b"]
+        R5["/api/embedding SBERT"]
+    end
+
+    subgraph Models["Models"]
+        W["Whisper (local)"]
+        P["pyannote.audio (local)"]
+        O1["Ollama qwen3:0.6b"]
+        O2["Ollama qwen3:1.7b"]
+        S["SBERT (local)"]
+    end
+
+    R1 --> W
+    R2 --> P
+    R2 --> W
+    R3 --> O1
+    R4 --> O2
+    R5 --> S
+```
+
+---
+
+## Features
+
+- **업로드 기반 회의 처리**: 오디오/영상 업로드 → 전사 → 화자 분리 → 요약 → 회의록 저장
+- **실시간 STT**: WebSocket으로 오디오 스트리밍 후 실시간 전사
+- **회의록 히스토리**: 저장된 회의록 목록 조회 및 상세 보기
+- **회의록 QA 챗봇**: 회의록 컨텍스트 기반 질의응답 (Qwen3 1.7B)
+- **회원/인증**: 로그인·회원가입 (Backend Member API)
+
+---
+
+## Project Structure
+
+```
+AI-Mini/
+├── frontend/          # React + Vite (port 3000)
+│   └── src/
+│       ├── landingPage, uploadPage, liveStt, historyPage
+│       ├── chatbot, layout, sidebar, context
+│       └── api, config, types, utils
+├── backend/           # Spring Boot (port 8080)
+│   └── src/main/java/com/minipr/backend/
+│       ├── meeting, member, segment, embedding
+│       ├── websocket, controller, service
+│       └── BackendApplication.java
+├── ai/                # FastAPI (port 8001)
+│   └── app/
+│       ├── api/       # chat, whisper, summarize, sbert, diarization routers
+│       ├── services/
+│       └── main.py
+├── scripts/
+│   └── start_dev.js   # concurrently: frontend + backend + ai
+└── package.json       # npm run dev → 통합 실행
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- **Node.js** v18+ (frontend, 루트 스크립트)
+- **Java 17+** (Backend)
+- **Python 3.12** (AI 서비스)
+- **Ollama** (Qwen3 로컬 추론)
+- **GPU** (권장): VRAM 6GB+, RAM 16GB+ (Medium 모델 기준)
+
+### 1. AI 서비스 (Python)
+
+```bash
 cd ai
-
-# 2. 가상환경 생성 (Python 3.12 기준)
 conda create -n ai5-backend python=3.12
 conda activate ai5-backend
 
-# 3. 필수 PyTorch 설치 (CUDA 12.4용 - 매우 중요!)
-# 모델의 GPU 가속을 위해 일반 pip install이 아닌 아래 명령어를 권장합니다.
+# CUDA 12.4용 PyTorch (GPU 가속 권장)
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
-
-# 4. 나머지 패키지 설치
 pip install -r requirements.txt
 
-# 5. Ollama 모델 다운로드 (서버 내에서 호출하는 모델들)
-ollama pull qwen3:0.6b   # 요약 전용 경량 모델
-ollama pull qwen3:1.7b   # 챗봇 전용 모델
-
-# 6. 백엔드 및 전체 실행 방법
-# 루트 폴더에서
-npm install     # concurrently 등 유틸리티 설치
-npm run dev     # AI, Backend, Frontend 동시 실행
-
-
-# 시스템 요구 사양: 현재 설정이 **조합 B(Medium 모델)**이므로, 원활한 동작을 위해 GPU VRAM 6GB 이상, RAM 16GB 이상을 요구 사양으로 명시하는 것이 좋습니다.
-
-# Troubleshooting: "CUDA 버전이 맞지 않을 경우 compute_type="int8"에서 오류가 발생할 수 있으니 nvidia-smi를 통해 CUDA 12.x 버전을 확인하라"는 내용을 추가하면 완벽합니다.
-
-
-# 7. API 테스트
-http://localhost:8001/docs
-
-
-
-
-### ### ### ### ### ### ### ###
-
-
-
-
-## Frontend
-
-### 전제 조건 (Prerequisites)
-프로젝트를 실행하기 전에 Node.js가 설치되어 있는지 확인해주세요.
-팀원 분들은 터미널에서 다음 명령어를 입력하여 버전을 확인해야 합니다.
-
-```bash
-# Node.js 버전 확인 (v18 이상 권장)
-node -v
-
-# npm 버전 확인
-npm -v
+# Ollama 모델
+ollama pull qwen3:0.6b   # 요약
+ollama pull qwen3:1.7b   # 챗봇
 ```
 
-*Node.js가 설치되어 있지 않다면 아래 방법을 통해 설치해주세요.*
+### 2. Frontend (Node.js)
 
-#### Node.js 설치 방법
 ```bash
-# nvm 설치 (curl)
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-
-# nvm 설치 후 터미널 재시작, node lts 버전 설치
-nvm install --lts
-nvm use --lts
+cd frontend
+npm install
+# 개발 서버만 쓸 경우: npm run dev
 ```
 
-1. **frontend 디렉토리로 이동**
-   ```bash
-   cd frontend
-   ```
+### 3. 통합 실행 (권장)
 
-2. **패키지 설치 (Install Dependencies)**
-   ```bash
-   npm install
-   ```
+루트에서 한 번에 실행:
 
-3. **개발 서버 실행 (Run Dev Server)**
-   ```bash
-   npm run dev
-   ```
+```bash
+npm install
+npm run dev
+```
+
+- **Frontend**: http://localhost:3000  
+- **Backend**: http://localhost:8080  
+- **AI API**: http://localhost:8001  
+- **API 문서**: http://localhost:8001/docs  
+
+---
+
+## Configuration
+
+- **Frontend**: `frontend/src/config.ts` — `API_BASE_URL` (백엔드/프록시 주소). 로컬은 Vite proxy로 `/api` → `http://localhost:8080`.
+- **Backend**: `backend/src/main/resources/application.properties` — `python.ai.url=http://127.0.0.1:8001` (AI 서비스 주소).
+
+---
+
+## Troubleshooting
+
+| 현상 | 확인/조치 |
+|------|-----------|
+| CUDA 관련 오류 (e.g. `compute_type="int8"`) | `nvidia-smi`로 CUDA 12.x 확인. PyTorch는 CUDA 버전에 맞게 설치 |
+| Ollama 연결 실패 | Ollama 서비스 실행 여부, `ollama list`로 모델 존재 확인 |
+| CORS/API 호출 실패 | Backend CORS 설정, Frontend `config.ts`의 `API_BASE_URL` 및 Vite proxy 일치 여부 확인 |
+
+---
+
+## License
+
+ISC
